@@ -17,15 +17,23 @@ spring:
         locator:
           enabled: true
       routes:
-        - id: student-service
-          uri: lb://student-service
+        - id: microserviceAccountDraft
+          uri: lb://microserviceAccountDraft
           predicates:
-            - Path=/student/**
-        - id: book-service
-          uri: lb://book-service
+            - Path=/credit-simulator/**
+        - id: microserviceCredit
+          uri: lb://microserviceCredit
           predicates:
-            - Path=/book/**
-        - id: pet-service
-          uri: lb://pet-service
+            - Path=/credit-application/**
+        - id: microserviceCustomer
+          uri: lb://microserviceCustomer
           predicates:
-            - Path=/pet/**
+            - Path=/user-registration/**
+        - id: microserviceSavingAccount
+          uri: lb://microserviceSavingAccount
+          predicates:
+            - Path=/tracking-requests/**
+        - id: microserviceWorkHistory
+          uri: lb://microserviceWorkHistory
+          predicates:
+            - Path=/credit-evaluation/**
