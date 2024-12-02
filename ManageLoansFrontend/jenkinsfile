@@ -1,0 +1,44 @@
+pipeline {
+    agent any
+    environment {
+        DOCKER_HUB_REPO = 'mahirolyuvob'
+        FRONTEND_IMAGE = "${DOCKER_HUB_REPO}/manageloans-frontend"
+    }
+    stages {
+        stage('Checkout to Git'){
+            steps{
+                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/MatiasMontNec/ManageLoans']])
+            }
+        }
+        stage('Build Frontend') {
+            steps {
+                script {
+                    bat 'npm install && npm run build'
+                }
+            }
+        }
+        stage('Build Docker Images') {
+            steps {
+                script {
+                    bat "docker build -t ${FRONTEND_IMAGE} ."
+                }
+            }
+        }
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: 'docker-credentials')])
+                    bat "docker push ${FRONTEND_IMAGE}"
+                }
+            }
+        }
+    }
+    post {
+        failure {
+            echo 'Error in pipeline.'
+        }
+        success {
+            echo 'Pipeline completed.'
+        }
+    }
+}
