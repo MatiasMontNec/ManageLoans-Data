@@ -25,51 +25,47 @@ const getMostRecentWorkHistory = (workHistoryEntities) => {
     return httpClient.post(`/credit-evaluation/most-recent`, workHistoryEntities);
 };
 
-// Evalúa la cuota mensual basada en los ingresos (R1)
-const evaluateIncomeFee = (creditId, monthlyFee, workHistoryEntity, customerId) => {
-    return httpClient.put(
-        `/credit-evaluation/r1-income-fee`,
-        workHistoryEntity,
-        { params: { creditId, monthlyFee, customerId } }
-    );
-};
-
-// Evalúa la antigüedad laboral y estabilidad (R3)
-const evaluateJobSeniority = (antique, creditId, customerId) => {
-    return httpClient.put(`/credit-evaluation/r3-job-seniority-stability`, null, {
-        params: { antique, creditId, customerId },
+// Evalúa la relación cuota-ingreso
+const evaluateFeeIncome = (monthlyFee, monthlyIncome) => {
+    return httpClient.get(`/credit-evaluation/fee-income`, {
+        params: { monthlyFee, monthlyIncome }
     });
 };
 
-// Evalúa la relación deuda-ingreso (R4)
-const evaluateDebtIncomeRelation = (monthlyFee, workHistoryEntity, creditId, customerId) => {
-    return httpClient.put(
-        `/credit-evaluation/r4-relation-debt-income`,
-        workHistoryEntity,
-        { params: { monthlyFee, creditId, customerId } }
-    );
-};
-
-// Evalúa el monto máximo de financiamiento (R5)
-const evaluateMaximumFinancingAmount = (creditId, customerId, monthlyFee) => {
-    return httpClient.put(`/credit-evaluation/r5-maximum-financing-amount`, null, {
-        params: { creditId, customerId, monthlyFee },
+// Evalúa la relación deuda-ingreso
+const evaluateDebtIncome = (income, debt, monthlyFee) => {
+    return httpClient.get(`/credit-evaluation/debt-income`, {
+        params: { income, debt, monthlyFee }
     });
 };
 
-// Evalúa la edad del solicitante (R6)
-const evaluateApplicantAge = (customerId, timeLimit, creditId, yearBirth) => {
-    return httpClient.put(`/credit-evaluation/r6-applicant-age`, null, {
-        params: { customerId, timeLimit, creditId, yearBirth },
+// Evalúa la antigüedad laboral
+const evaluateJobSeniority = (antique) => {
+    return httpClient.get(`/credit-evaluation/job-seniority`, {
+        params: { antique }
+    });
+};
+
+// Evalúa la edad del solicitante al finalizar el crédito
+const evaluateApplicantAge = (yearBirth, timeLimit) => {
+    return httpClient.get(`/credit-evaluation/applicant-age`, {
+        params: { yearBirth, timeLimit }
     });
 };
 
 // Evalúa la capacidad de ahorro del cliente (R7)
-const evaluateCapacitySavings = (amount, antique, desiredAmount, creditId, customerId, workHistoryRecently) => {
-    return httpClient.put(
+const evaluateCapacitySavings = (amount, antique, desiredAmount, customerId, workHistoryRecently) => {
+    return httpClient.post(
         `/credit-evaluation/r7-capacity-savings`,
         workHistoryRecently,
-        { params: { amount, antique, desiredAmount, creditId, customerId } }
+        {
+            params: {
+                amount,
+                antique,
+                desiredAmount,
+                customerId,
+            },
+        }
     );
 };
 
@@ -79,10 +75,9 @@ export default {
     saveWorkHistory,
     deleteWorkHistory,
     getMostRecentWorkHistory,
-    evaluateIncomeFee,
-    evaluateJobSeniority,
-    evaluateDebtIncomeRelation,
-    evaluateMaximumFinancingAmount,
-    evaluateApplicantAge,
     evaluateCapacitySavings,
+    evaluateFeeIncome,
+    evaluateDebtIncome,
+    evaluateJobSeniority,
+    evaluateApplicantAge
 };

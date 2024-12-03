@@ -1,5 +1,10 @@
 import httpClient from "../http-common";
 
+// Función para obtener los drafts de la cuenta de ahorro por savingAccountId
+const getAccountDraftsBySavingAccountId = (savingAccountId) => {
+    return httpClient.get(`/account-drafts/saving-account/${savingAccountId}`);
+};
+
 // Calcula la cuota mensual de un crédito
 const getMonthlyFee = (creditEntity) => {
     return httpClient.post('/credit-simulator/monthly-fee', creditEntity);
@@ -37,4 +42,5 @@ export default {
     getDraftsLastSixMonths,
     saveAccountDraft,
     deleteAccountDraft,
+    getAccountDraftsBySavingAccountId
 };

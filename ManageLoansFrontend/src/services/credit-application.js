@@ -6,25 +6,38 @@ const saveCredit = (creditEntity) => {
     return httpClient.post('/credit-application/save', creditEntity);
 };
 
-// Sube un archivo PDF asociado a un crédito
-const uploadPdf = (creditEvaluationId, file, type) => {
+const uploadPdf = (creditEvaluationId, file) => {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("type", type);
 
-    return httpClient.post(`/credit-application/uploadPdf/${creditEvaluationId}`, formData, {
+    return httpClient.post(`/api/creditEvaluations/uploadPdf/${creditEvaluationId}`, formData, {
         headers: {
             "Content-Type": "multipart/form-data",
-        },
+        }
     });
 };
 
-// Descarga un archivo PDF asociado a un crédito
-const downloadPdf = (creditEvaluationId, type) => {
-    return httpClient.get(`/credit-application/downloadPdf/${creditEvaluationId}`, {
-        params: { type },
-        responseType: 'blob', // Para manejar archivos binarios
-    });
+const downloadPdf = (creditEvaluationId) => {
+    console.log("ID del credito: ", creditEvaluationId);
+    return httpClient.get(`/api/creditEvaluations/downloadPdf/${creditEvaluationId}`, {
+        responseType: "blob",
+    })
+        .then(response => {
+            const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", `credit_evaluation_${creditEvaluationId}.pdf`); // Nombre del archivo
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        })
+        .catch(error => {
+            console.error("Error al descargar el archivo PDF:", error);
+        });
+};
+
+const getCreditEvaluationById = (id) => {
+    return httpClient.get(`/api/creditEvaluations/creditEvaluation/${id}`);
 };
 
 // Calcula la cuota mensual de un crédito

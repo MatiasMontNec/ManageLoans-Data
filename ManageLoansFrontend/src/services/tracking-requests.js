@@ -1,5 +1,10 @@
 import httpClient from "../http-common";
 
+// Obtiene una cuenta de ahorro por el customerId
+const getSavingAccountByCustomerId = (customerId) => {
+    return httpClient.get(`/saving-accounts/customer/${customerId}`);
+};
+
 // Guarda una cuenta de ahorro
 const saveSavingAccount = (savingAccount) => {
     return httpClient.post(`/tracking-requests/save`, savingAccount);
@@ -35,4 +40,5 @@ export default {
     setExecutiveWorking,
     modifyFollowUp,
     modifyFollowUpAndCustomerId,
+    getSavingAccountByCustomerId
 };

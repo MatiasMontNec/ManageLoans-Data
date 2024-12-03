@@ -1,20 +1,25 @@
 import {useNavigate, useParams} from "react-router-dom";
 import React, {useEffect, useState} from "react";
-import { Box, Button, FormControl, TextField, Typography, Select, MenuItem, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import {Box, Button, ButtonGroup, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Card, CardContent, Grid, Divider} from "@mui/material";
 import CalculateIcon from '@mui/icons-material/Calculate';
 import creditEvaluation from "../services/credit-evaluation.js";
 import creditApplication from "../services/credit-application.js";
 import trackingRequests from "../services/tracking-requests.js";
 import creditSimulator from "../services/credit-simulator.js";
 import {LoanTypesTable} from "../services/credit-application.js"
+import userRegistration from "../services/user-registration.js";
 
 const CreditEvaluation = () => {
     const { id , creditId} = useParams();
     const navigate = useNavigate();
     const [errorMessage, setErrorMessage] = useState("");
-    const [greatMessage, setGreatMessage] = useState([]);
+    const [followUp, setFollowUp] = useState(0);
     const [workHistoryList,setWorkHistoryList] = useState([]);
+    const [accountDrafts, setAccountDrafts] = useState([]);
+    const [mostRecentedWork, setMostRcentedWork] = useState(null);
     const [savingAccountEntity, setSavingAccountEntity] = useState(null);
+    const [customer, setCustomer] = useState(null);
+    const [credit, setCredit] = useState(null);
     const [costoMensual, setCostoMensual] = useState(0);
     const [costoTotal, setCostoTotal] = useState(0);
 
@@ -23,14 +28,34 @@ const CreditEvaluation = () => {
         creditEvaluation.getWorkHistoriesByCustomerId(id)
             .then(response => {
                 setWorkHistoryList(response.data);
+                creditEvaluation.getMostRecentWorkHistory(response.data)
+                    .then((response) => {
+                        setMostRcentedWork(response.data);
+                    })
             })
             .catch(error => {
                 console.log("Error al obtener el historial del trabajo", error);
             });
+        //Cargamos el savingAccount
+        trackingRequests.getSavingAccountByCustomerId(id)
+            .then((response) => {
+                setSavingAccountEntity(response.data);
+                creditSimulator.getAccountDraftsBySavingAccountId(response.data.id)
+                    .then((response) => {
+                        setAccountDrafts(response.data);
+                    })
+            })
+        //Cargamos el customer
+        userRegistration.getCustomerById(id)
+            .then((response) => {
+                setCustomer(response.data);
+            })
         //Cargamos el credito en cuestion
         creditApplication.getCreditById(creditId)
             .then((response) => {
                 console.log("Credito:", JSON.stringify(response.data, null, 2));
+                setCredit(response.data);
+                setFollowUp(response.data.follow_up);
                 creditSimulator.getMonthlyFee(response.data)
                     .then((response) => {
                         setCostoMensual(response.data);
@@ -50,77 +75,80 @@ const CreditEvaluation = () => {
         navigate(`/listCredit/${id}`);
     };
 
-    const handleTo3 = async () => {
-        await trackingRequests.modifyFollowUp(creditId, 3);
-    }
+    const handleFollowUp = async (status) => {
+        await trackingRequests.modifyFollowUp(creditId, status);
+        setFollowUp(status);
+        switch (status) {
+            case 3:
+                break;
+            case 4:
+                break;
+            case 5:
+                break;
+            case 6:
+                await messageFailed();
+                break;
+            case 7:
+                await messageCancel();
+                break;
+            case 8:
+                await messageSuccess();
+                break;
+            default:
+                break;
+        }
+    };
 
-    const handleTo4 = async () => {
-        await trackingRequests.modifyFollowUp(creditId, 4);
-    }
-
-    const handleTo5 = async () => {
-        await trackingRequests.modifyFollowUp(creditId, 5);
-    }
-
-    const handleTo6 = async () => {
-        await trackingRequests.modifyFollowUp(creditId, 6);
-        messageFailed();
-    }
-
-    const handleTo7 = async () => {
-        await trackingRequests.modifyFollowUp(creditId, 7);
-        messageCancel();
-    }
-
-    const handleTo8 = async () => {
-        await trackingRequests.modifyFollowUp(creditId, 8);
-        messageSuccess();
-    }
 
     const evaluation = () => {
-        creditEvaluation.evaluateMaximumFinancingAmount(creditId,id,costoMensual)
-            .then((result) => {
-                if(result.data === -1){
-                    return -1;
+        if (costoMensual === -1) {
+            setFollowUp(-6);
+            trackingRequests.modifyFollowUp(creditId, -6)
+                .then(() => {
+                    setErrorMessage("Hubo un problema al checkear el monto financiado máximo.");
+                });
+            return -1;
+        }
+
+        Promise.all([
+            creditEvaluation.evaluateFeeIncome(costoMensual, mostRecentedWork.income),
+            creditEvaluation.evaluateJobSeniority(savingAccountEntity.antique),
+            creditEvaluation.evaluateDebtIncome(mostRecentedWork.income, mostRecentedWork.debt, costoMensual),
+            creditEvaluation.evaluateApplicantAge(customer.yearBirth, credit.timeLimit),
+            creditEvaluation.evaluateCapacitySavings(savingAccountEntity.amount, savingAccountEntity.antique, credit.amountWanted, id, mostRecentedWork)
+        ])
+            .then(([feeIncomeRes, jobSeniorityRes, debtIncomeRes, ageRes, capacitySavingsRes]) => {
+                if (feeIncomeRes.data === 0 || jobSeniorityRes.data === 0 || debtIncomeRes.data === 0 || ageRes.data === 0 || capacitySavingsRes.data <= 2) {
+                    setFollowUp(-6);
+                    trackingRequests.modifyFollowUp(creditId, -6)
+                        .then(() => {
+                            setErrorMessage("Rechazado en una de las evaluaciones.");
+                        });
+                } else {
+                    setFollowUp(2);
+                    trackingRequests.modifyFollowUp(creditId, 2)
+                        .then(async () => {
+                            await trackingRequests.setExecutiveWorking(creditId);
+                        });
                 }
             })
-
-        //creditEvaluation.evaluateIncomeFee(creditId,costoMensual,,id)
-        return 1;
-    }
-
-    const isButtonDisabled = () => {
-        return !propertyValue || !timeLimit || !interestRate || !typeLoan;
+            .catch(() => {
+                setFollowUp(-6);
+                setErrorMessage("Hubo un error al realizar las evaluaciones.");
+            });
     };
 
-    const handleChange = (event) => {
-        const { name, value } = event.target;
-        if (name === 'propertyValue') setPropertyValue(value);
-        if (name === 'timeLimit') {
-            setTimeLimit(value);
-            localStorage.setItem("timeLimit", value);
-        }
-        if (name === 'interestRate') setInterestRate(value);
-        if (name === 'typeLoan') setTypeLoan(value);
-    };
 
     const handleEvaluation = async () => {
         setErrorMessage("");
-        setGreatMessage([]);
-
-        const result = await evaluation();
-
-        await creditEvaluationsService.getCreditEvaluationById(creditId)
-            .then(async (response) => {
-                await setCreditEvaluationsEntity(response.data);
-                if (result === -1) {
-                    messageFailed();
-                    setGreatMessage([]);
-                    localStorage.removeItem("timeLimit");
-                    localStorage.removeItem("costoMensual");
-                    localStorage.removeItem("costoTotal");
-                }
-            });
+        try {
+            const result = evaluation();
+            if (result === -1) {
+                await messageFailed();
+            }
+        } catch (error) {
+            setErrorMessage("Ocurrió un error en la evaluación.");
+        }
     };
 
     const formatDate = (dateString) => {
@@ -131,50 +159,53 @@ const CreditEvaluation = () => {
         return `${day}/${month}/${year}`;
     };
 
-    const messageSuccess = () => {
+    const message = async (content) => {
         const date = new Date().toISOString().split('T')[0];
-        const customerHistory2 = {
-            content: "Credito evaluado aprobado",
-            date
-        };
-        const customerRequest = {
-            workHistoryEntities: null,
-            savingAccountEntity: null,
-            creditEvaluationsEntities: null,
-            customerHistoryEntities: customerHistory2,
-        };
-        customersService.updateCustomer(id, customerRequest);
-    }
+        const customerHistory2 = { customerId: id, content, date };
+        await userRegistration.saveCustomerHistory(customerHistory2);
+    };
 
-    const messageCancel = () => {
-        const date = new Date().toISOString().split('T')[0];
-        const customerHistory2 = {
-            content: "Credito evaluado cancelado por cliente",
-            date
-        };
-        const customerRequest = {
-            workHistoryEntities: null,
-            savingAccountEntity: null,
-            creditEvaluationsEntities: null,
-            customerHistoryEntities: customerHistory2,
-        };
-        customersService.updateCustomer(id, customerRequest);
-    }
+    const messageSuccess = async () => await message("Credito evaluado aprobado");
+    const messageCancel = async () => await message("Credito evaluado cancelado por cliente");
+    const messageFailed = async () => await message("Credito evaluado rechazado");
 
-    const messageFailed = () => {
-        const date = new Date().toISOString().split('T')[0];
-        const customerHistory2 = {
-            content: "Credito evaluado rechazado",
-            date
-        };
-        const customerRequest = {
-            workHistoryEntities: null,
-            savingAccountEntity: null,
-            creditEvaluationsEntities: null,
-            customerHistoryEntities: customerHistory2,
-        };
-        customersService.updateCustomer(id, customerRequest);
-    }
+    // Helper functions
+    const getCreditType = (type) => {
+        switch (type) {
+            case 1:
+                return "Crédito de primera vivienda";
+            case 2:
+                return "Crédito de segunda vivienda";
+            case 3:
+                return "Crédito de propiedades comerciales";
+            case 4:
+                return "Crédito de remodelación";
+            default:
+                return "Tipo desconocido";
+        }
+    };
+
+    const getDocumentButtons = (type, creditApplication, creditId) => {
+        const buttons = [];
+        if (type === 1) {
+            buttons.push("Comprobante de ingresos", "Certificado avalúo", "Historial crediticio");
+        } else if (type === 2) {
+            buttons.push("Comprobante de ingresos", "Certificado avalúo", "Escritura primera vivienda", "Historial crediticio");
+        }else if(type === 3){
+            buttons.push("Estado financiero del negocio", "Comprobante de ingresos", "Certificado de avalúo", "Plan de negocios");
+        }else if(type === 4){
+            buttons.push("Comprobante de ingresos", "Presupuesto de la remodelación", "Certificado de avalúo actualizado")
+        }
+        return buttons.map((label, index) => (
+            <Button
+                key={index}
+                onClick={() => creditApplication.downloadPdf(creditId, index + 1)}
+                sx={{ marginBottom: 1 }}
+            >
+                Descargar PDF de {label}
+            </Button>
+        ));
+    };
 
     return (
         <Box sx={{ padding: '20px', maxWidth: '600px', margin: 'auto', border: '1px solid #ddd', borderRadius: '8px' }}>
@@ -182,77 +213,15 @@ const CreditEvaluation = () => {
                 Evaluación de Crédito
             </Typography>
             <LoanTypesTable />
-            <Typography variant="h5" sx={{ textAlign: 'center', marginBottom: '20px' }}>
-                Monto deseado declarado en la creación del crédito: {creditEvaluationsEntity ? creditEvaluationsEntity.amount : 'Cargando...'}
-            </Typography>
 
-            {creditEvaluationsEntity ? (
-                (creditEvaluationsEntity.follow_up === 0 || creditEvaluationsEntity.follow_up === 1) ? (
+            {credit ? (
+                (followUp === 0 || followUp === 1) ? (
                 <>
-                    <Box sx={{ marginBottom: '15px' }}>
-                        <Typography variant="body1">Valor de la Propiedad:</Typography>
-                        <TextField
-                            fullWidth
-                            type="number"
-                            name="propertyValue"
-                            value={propertyValue}
-                            onChange={handleChange}
-                            variant="outlined"
-                            sx={{ marginTop: '5px' }}
-                        />
-                    </Box>
-
-                    <Box sx={{ marginBottom: '15px' }}>
-                        <Typography variant="body1">Plazo de Tiempo (en años):</Typography>
-                        <TextField
-                            fullWidth
-                            type="number"
-                            name="timeLimit"
-                            value={timeLimit}
-                            onChange={handleChange}
-                            variant="outlined"
-                            sx={{ marginTop: '5px' }}
-                        />
-                    </Box>
-
-                    <Box sx={{ marginBottom: '15px' }}>
-                        <Typography variant="body1">Tasa de Interés (%):</Typography>
-                        <TextField
-                            fullWidth
-                            type="number"
-                            name="interestRate"
-                            value={interestRate}
-                            inputProps={{ min: 3.5, max: 7, step: 0.1 }}
-                            onChange={handleChange}
-                            variant="outlined"
-                            sx={{ marginTop: '5px' }}
-                        />
-                    </Box>
-
-                    <Box sx={{ marginBottom: '20px' }}>
-                        <Typography variant="body1">Tipo de Préstamo:</Typography>
-                        <FormControl fullWidth variant="outlined" sx={{ marginTop: '5px' }}>
-                            <Select
-                                name="typeLoan"
-                                value={typeLoan}
-                                onChange={handleChange}
-                                displayEmpty
-                            >
-                                <MenuItem value={0} disabled>Seleccione el tipo de préstamo</MenuItem>
-                                <MenuItem value={1}>Tipo 1</MenuItem>
-                                <MenuItem value={2}>Tipo 2</MenuItem>
-                                <MenuItem value={3}>Tipo 3</MenuItem>
-                                <MenuItem value={4}>Tipo 4</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Box>
-
                     <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                         <Button
                             variant="contained"
                             color="primary"
                             onClick={handleEvaluation}
-                            disabled={isButtonDisabled()}
                             startIcon={<CalculateIcon />}
                         >
                             Evaluar Crédito
@@ -264,99 +233,218 @@ const CreditEvaluation = () => {
                 <Typography variant="body1">Cargando información de crédito...</Typography>
             )}
 
-            {creditEvaluationsEntity ? (
-                creditEvaluationsEntity.follow_up === 2 ? (
-                    <>
-                        <TableContainer component={Paper}>
-                            <h3>Historial de trabajo</h3>
-                            <hr />
-                            <Table sx={{ minWidth: 650 }} size="small" aria-label="customer history table">
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell align="right" sx={{ fontWeight: "bold" }}>Ingreso</TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: "bold" }}>Deuda</TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: "bold" }}>Historia crediticia</TableCell>
-                                        <TableCell align="right" sx={{ fontWeight: "bold" }}>Fecha</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {workHistoryList.map((history) => (
-                                        <TableRow key={history.id} sx={{ "&:last-child td, &:last-child th": { border: 0 } }}>
-                                            <TableCell align="right">{history.income}</TableCell>
-                                            <TableCell align="right">{history.debt}</TableCell>
-                                            <TableCell align="right">{history.creditHistory}</TableCell>
-                                            <TableCell align="right">{formatDate(history.date)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={() => creditEvaluationsService.downloadPdf(creditId)}
-                            style={{ marginTop: '20px' }}
-                        >
-                            Descargar PDF
-                        </Button>
-                        <Typography variant="body1" color="textSecondary">
-                            Se revisa el historial crediticio del cliente en DICOM (Directorio de Información
-                            Comercial). Si el cliente tiene un buen historial (sin morosidad o deudas impagas recientes),
-                            puede avanzar en el proceso. Si existen morosidades graves o una alta cantidad de deudas pendientes,
-                            la solicitud es rechazada.
-                        </Typography>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={handleTo3}
-                            style={{ marginTop: '20px' }}
-                        >
-                            Aprobar historial crediticio
-                        </Button>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={handleTo6}
-                            style={{ marginTop: '20px' }}
-                        >
-                            Rechazar historial crediticio
-                        </Button>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={handleTo7}
-                            style={{ marginTop: '20px' }}
-                        >
-                            Rechazar como cliente
-                        </Button>
-                    </>
+            {credit && savingAccountEntity && workHistoryList && customer && accountDrafts ? (
+                followUp === 2 ? (
+                    <Grid container spacing={3}>
+                        {/* Datos del solicitante */}
+                        <Grid item xs={12}>
+                            <Card>
+                                <CardContent>
+                                    <Typography variant="h6" gutterBottom>
+                                        Datos del Solicitante
+                                    </Typography>
+                                    <Divider sx={{ marginBottom: 2 }} />
+                                    <Typography variant="body1">Nombre: {customer.name}</Typography>
+                                    <Typography variant="body1">Año de nacimiento: {customer.yearBirth}</Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+
+                        {/* Historial de trabajo */}
+                        <Grid item xs={12}>
+                            <Card>
+                                <CardContent>
+                                    <Typography variant="h6" gutterBottom>
+                                        Historial de Trabajo
+                                    </Typography>
+                                    <Divider sx={{ marginBottom: 2 }} />
+                                    <TableContainer component={Paper}>
+                                        <Table size="small" aria-label="work history table">
+                                            <TableHead>
+                                                <TableRow>
+                                                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                        Ingreso
+                                                    </TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                        Deuda
+                                                    </TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                        Historia crediticia
+                                                    </TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                        Fecha
+                                                    </TableCell>
+                                                </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                                {workHistoryList.map((history) => (
+                                                    <TableRow key={history.id}>
+                                                        <TableCell align="right">{history.income}</TableCell>
+                                                        <TableCell align="right">{history.debt}</TableCell>
+                                                        <TableCell align="right">{history.creditHistory}</TableCell>
+                                                        <TableCell align="right">{formatDate(history.date)}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </TableContainer>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+
+                        {/* Cuenta de ahorro */}
+                        <Grid item xs={12}>
+                            <Card>
+                                <CardContent>
+                                    <Typography variant="h6" gutterBottom>
+                                        Cuenta de Ahorro
+                                    </Typography>
+                                    <Divider sx={{ marginBottom: 2 }} />
+                                    <Typography variant="body1">Antigüedad: {savingAccountEntity.antique}</Typography>
+                                    {savingAccountEntity.self_employed_worker === 1 && (
+                                        <Typography variant="body1">Trabajador autónomo</Typography>
+                                    )}
+                                    <Typography variant="body1">
+                                        Monto de la cuenta: {savingAccountEntity.amount}
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+
+                        {/* Historial de giros */}
+                        <Grid item xs={12}>
+                            <Card>
+                                <CardContent>
+                                    <Typography variant="h6" gutterBottom>
+                                        Historial de Giros
+                                    </Typography>
+                                    <Divider sx={{ marginBottom: 2 }} />
+                                    <TableContainer component={Paper}>
+                                        <Table size="small" aria-label="drafts history table">
+                                            <TableHead>
+                                                <TableRow>
+                                                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                        Giro
+                                                    </TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                        Monto en ese momento
+                                                    </TableCell>
+                                                    <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                        Fecha
+                                                    </TableCell>
+                                                </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                                {accountDrafts.map((history) => (
+                                                    <TableRow key={history.id}>
+                                                        <TableCell align="right">{history.drafts}</TableCell>
+                                                        <TableCell align="right">{history.amountAtThatTime}</TableCell>
+                                                        <TableCell align="right">{formatDate(history.date)}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </TableContainer>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+
+                        {/* Información del crédito solicitado */}
+                        <Grid item xs={12}>
+                            <Card>
+                                <CardContent>
+                                    <Typography variant="h6" gutterBottom>
+                                        Información del Crédito Solicitado
+                                    </Typography>
+                                    <Divider sx={{ marginBottom: 2 }} />
+                                    <ul>
+                                        <li>Tipo de crédito: {getCreditType(credit.typeloan)}</li>
+                                        <li>Monto solicitado: {credit.amountWanted}</li>
+                                        <li>Monto de la propiedad: {credit.amountMax}</li>
+                                        <li>Rango de interés solicitado: {credit.interestRate}</li>
+                                        <li>Tiempo designado: {credit.timeLimit}</li>
+                                        <li>Costo mensual: {costoMensual}</li>
+                                        <li>Costo total: {costoTotal}</li>
+                                    </ul>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+
+                        {/* Botones de descarga */}
+                        <Grid item xs={12}>
+                            <Card>
+                                <CardContent>
+                                    <Typography variant="h6" gutterBottom>
+                                        Documentos Relacionados
+                                    </Typography>
+                                    <Divider sx={{ marginBottom: 2 }} />
+                                    <ButtonGroup orientation="vertical" fullWidth>
+                                        {getDocumentButtons(credit.typeloan, creditApplication, creditId)}
+                                    </ButtonGroup>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+
+                        {/* Botones de seguimiento */}
+                        <Grid item xs={12}>
+                            <Button variant="contained" color="primary" onClick={() => handleFollowUp(3)}>
+                                Aprobar solicitud de crédito
+                            </Button>
+                            <Button
+                                variant="contained"
+                                color="secondary"
+                                sx={{ marginLeft: 2 }}
+                                onClick={() => handleFollowUp(6)}
+                            >
+                                Rechazar solicitud de crédito
+                            </Button>
+                            <Button
+                                variant="contained"
+                                color="error"
+                                sx={{ marginLeft: 2 }}
+                                onClick={() => handleFollowUp(7)}
+                            >
+                                Rechazar como cliente
+                            </Button>
+                        </Grid>
+                    </Grid>
                 ) : null
             ) : (
-                <Typography variant="body1">Cargando información de crédito...</Typography>
+                <Typography variant="body1">Cargando información...</Typography>
             )}
 
-
-            {creditEvaluationsEntity ? (
-                creditEvaluationsEntity.follow_up === 3 ? (
+            {credit ? (
+                followUp === 3 ? (
                     <>
                         <Typography variant="body1" color="textSecondary">
                             La solicitud ha sido evaluada y cumple con los criterios básicos del
                             banco, por lo que ha sido pre-aprobada. En este estado, se presentan las condiciones
                             iniciales del crédito al cliente.
                         </Typography>
-                        <Typography variant="body1" color="textSecondary">
-                            Pago mensual: {costoMensual}
-                        </Typography>
-                        <Typography variant="body1" color="textSecondary">
-                            Periodo de tiempo: {timeLimit}
-                        </Typography>
-                        <Typography variant="body1" color="textSecondary">
-                            Costo total del crédito: {costoTotal}
-                        </Typography>
+                        {/* Información del crédito solicitado */}
+                        <Grid item xs={12}>
+                            <Card>
+                                <CardContent>
+                                    <Typography variant="h6" gutterBottom>
+                                        Información del Crédito Solicitado
+                                    </Typography>
+                                    <Divider sx={{ marginBottom: 2 }} />
+                                    <ul>
+                                        <li>Tipo de crédito: {getCreditType(credit.typeloan)}</li>
+                                        <li>Monto solicitado: {credit.amountWanted}</li>
+                                        <li>Monto de la propiedad: {credit.amountMax}</li>
+                                        <li>Rango de interés solicitado: {credit.interestRate}</li>
+                                        <li>Tiempo designado: {credit.timeLimit}</li>
+                                        <li>Costo mensual: {costoMensual}</li>
+                                        <li>Costo total: {costoTotal}</li>
+                                    </ul>
+                                </CardContent>
+                            </Card>
+                        </Grid>
                         <Button
                             variant="contained"
                             color="primary"
-                            onClick={handleTo4}
+                            onClick={() => handleFollowUp(4)}
                             style={{ marginTop: '20px' }}
                         >
                             Aceptar condiciones
@@ -364,7 +452,7 @@ const CreditEvaluation = () => {
                         <Button
                             variant="contained"
                             color="primary"
-                            onClick={handleTo7}
+                            onClick={() => handleFollowUp(7)}
                             style={{ marginTop: '20px' }}
                         >
                             Rechazar
@@ -375,34 +463,190 @@ const CreditEvaluation = () => {
                 <Typography variant="body1">Cargando información de crédito...</Typography>
             )}
 
-            {creditEvaluationsEntity ? (
-                creditEvaluationsEntity.follow_up === 4 ? (
+            {(credit && savingAccountEntity && workHistoryList && customer && accountDrafts) ? (
+                followUp === 4 ? (
                     <>
                         <Typography variant="body1" color="textSecondary">
                             La solicitud se encuentra en proceso de aprobación final. Aquí se revisan los detalles
                             finales, se emiten los contratos y se preparan los documentos legales.
                         </Typography>
+                        <Grid container spacing={3}>
+                            {/* Datos del solicitante */}
+                            <Grid item xs={12}>
+                                <Card>
+                                    <CardContent>
+                                        <Typography variant="h6" gutterBottom>
+                                            Datos del Solicitante
+                                        </Typography>
+                                        <Divider sx={{ marginBottom: 2 }} />
+                                        <Typography variant="body1">Nombre: {customer.name}</Typography>
+                                        <Typography variant="body1">Año de nacimiento: {customer.yearBirth}</Typography>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            {/* Historial de trabajo */}
+                            <Grid item xs={12}>
+                                <Card>
+                                    <CardContent>
+                                        <Typography variant="h6" gutterBottom>
+                                            Historial de Trabajo
+                                        </Typography>
+                                        <Divider sx={{ marginBottom: 2 }} />
+                                        <TableContainer component={Paper}>
+                                            <Table size="small" aria-label="work history table">
+                                                <TableHead>
+                                                    <TableRow>
+                                                        <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                            Ingreso
+                                                        </TableCell>
+                                                        <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                            Deuda
+                                                        </TableCell>
+                                                        <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                            Historia crediticia
+                                                        </TableCell>
+                                                        <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                            Fecha
+                                                        </TableCell>
+                                                    </TableRow>
+                                                </TableHead>
+                                                <TableBody>
+                                                    {workHistoryList.map((history) => (
+                                                        <TableRow key={history.id}>
+                                                            <TableCell align="right">{history.income}</TableCell>
+                                                            <TableCell align="right">{history.debt}</TableCell>
+                                                            <TableCell align="right">{history.creditHistory}</TableCell>
+                                                            <TableCell align="right">{formatDate(history.date)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </TableContainer>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            {/* Cuenta de ahorro */}
+                            <Grid item xs={12}>
+                                <Card>
+                                    <CardContent>
+                                        <Typography variant="h6" gutterBottom>
+                                            Cuenta de Ahorro
+                                        </Typography>
+                                        <Divider sx={{ marginBottom: 2 }} />
+                                        <Typography variant="body1">Antigüedad: {savingAccountEntity.antique}</Typography>
+                                        {savingAccountEntity.self_employed_worker === 1 && (
+                                            <Typography variant="body1">Trabajador autónomo</Typography>
+                                        )}
+                                        <Typography variant="body1">
+                                            Monto de la cuenta: {savingAccountEntity.amount}
+                                        </Typography>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            {/* Historial de giros */}
+                            <Grid item xs={12}>
+                                <Card>
+                                    <CardContent>
+                                        <Typography variant="h6" gutterBottom>
+                                            Historial de Giros
+                                        </Typography>
+                                        <Divider sx={{ marginBottom: 2 }} />
+                                        <TableContainer component={Paper}>
+                                            <Table size="small" aria-label="drafts history table">
+                                                <TableHead>
+                                                    <TableRow>
+                                                        <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                            Giro
+                                                        </TableCell>
+                                                        <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                            Monto en ese momento
+                                                        </TableCell>
+                                                        <TableCell align="right" sx={{ fontWeight: "bold" }}>
+                                                            Fecha
+                                                        </TableCell>
+                                                    </TableRow>
+                                                </TableHead>
+                                                <TableBody>
+                                                    {accountDrafts.map((history) => (
+                                                        <TableRow key={history.id}>
+                                                            <TableCell align="right">{history.drafts}</TableCell>
+                                                            <TableCell align="right">{history.amountAtThatTime}</TableCell>
+                                                            <TableCell align="right">{formatDate(history.date)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </TableContainer>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            {/* Información del crédito solicitado */}
+                            <Grid item xs={12}>
+                                <Card>
+                                    <CardContent>
+                                        <Typography variant="h6" gutterBottom>
+                                            Información del Crédito Solicitado
+                                        </Typography>
+                                        <Divider sx={{ marginBottom: 2 }} />
+                                        <ul>
+                                            <li>Tipo de crédito: {getCreditType(credit.typeloan)}</li>
+                                            <li>Monto solicitado: {credit.amountWanted}</li>
+                                            <li>Monto de la propiedad: {credit.amountMax}</li>
+                                            <li>Rango de interés solicitado: {credit.interestRate}</li>
+                                            <li>Tiempo designado: {credit.timeLimit}</li>
+                                            <li>Costo mensual: {costoMensual}</li>
+                                            <li>Costo total: {costoTotal}</li>
+                                        </ul>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            {/* Botones de descarga */}
+                            <Grid item xs={12}>
+                                <Card>
+                                    <CardContent>
+                                        <Typography variant="h6" gutterBottom>
+                                            Documentos Relacionados
+                                        </Typography>
+                                        <Divider sx={{ marginBottom: 2 }} />
+                                        <ButtonGroup orientation="vertical" fullWidth>
+                                            {getDocumentButtons(credit.typeloan, creditApplication, creditId)}
+                                        </ButtonGroup>
+                                    </CardContent>
+                                </Card>
+                            </Grid>
+
+                            {/* Botones de seguimiento */}
+                            <Grid item xs={12}>
+                                <Button variant="contained" color="primary" onClick={() => handleFollowUp(3)}>
+                                    Aprobar solicitud de crédito
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    color="secondary"
+                                    sx={{ marginLeft: 2 }}
+                                    onClick={() => handleFollowUp(6)}
+                                >
+                                    Rechazar solicitud de crédito
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    color="error"
+                                    sx={{ marginLeft: 2 }}
+                                    onClick={() => handleFollowUp(7)}
+                                >
+                                    Rechazar como cliente
+                                </Button>
+                            </Grid>
+                        </Grid>
                         <Button
                             variant="contained"
                             color="primary"
-                            onClick={() => creditEvaluationsService.downloadPdf(creditId)}
-                            style={{ marginTop: '20px' }}
-                        >
-                            Descargar PDF
-                        </Button>
-                        <Typography variant="body1" color="textSecondary">
-                            Pago mensual: {costoMensual}
-                        </Typography>
-                        <Typography variant="body1" color="textSecondary">
-                            Periodo de tiempo: {timeLimit}
-                        </Typography>
-                        <Typography variant="body1" color="textSecondary">
-                            Costo total del crédito: {costoTotal}
-                        </Typography>
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={handleTo5}
+                            onClick={() => handleFollowUp(5)}
                             style={{ marginTop: '20px' }}
                         >
                             Aceptar tras las últimas verificaciones
@@ -410,7 +654,7 @@ const CreditEvaluation = () => {
                         <Button
                             variant="contained"
                             color="primary"
-                            onClick={handleTo6}
+                            onClick={() => handleFollowUp(6)}
                             style={{ marginTop: '20px' }}
                         >
                             Rechazar
@@ -418,7 +662,7 @@ const CreditEvaluation = () => {
                         <Button
                             variant="contained"
                             color="primary"
-                            onClick={handleTo7}
+                            onClick={() => handleFollowUp(7)}
                             style={{ marginTop: '20px' }}
                         >
                             Rechazar como cliente
@@ -429,8 +673,8 @@ const CreditEvaluation = () => {
                 <Typography variant="body1">Cargando información de crédito...</Typography>
             )}
 
-            {creditEvaluationsEntity ? (
-                creditEvaluationsEntity.follow_up === 5 ? (
+            {credit ? (
+                followUp === 5 ? (
                     <>
                         <Typography variant="body1" color="textSecondary">
                             La solicitud ha sido aprobada y está lista para el desembolso. El cliente
@@ -439,7 +683,7 @@ const CreditEvaluation = () => {
                         <Button
                             variant="contained"
                             color="primary"
-                            onClick={handleTo8}
+                            onClick={() => handleFollowUp(8)}
                             style={{ marginTop: '20px' }}
                         >
                             Programar desembolso
@@ -451,137 +695,113 @@ const CreditEvaluation = () => {
             )}
 
 
-            {creditEvaluationsEntity ? (
-                creditEvaluationsEntity.follow_up === 6 ? (
-                    <Typography variant="body1" color="primary" component="div" style={{ marginTop: '20px' }}>
-                        La solicitud ha sido rechazada tras no pasar las verificaciones para ser considerada, aquí tiene lo
-                        que debe de saber si quiere que esté completamente buena su próximo crédito a solicitar:
+            {credit ? (
+                followUp === 6 ? (
+                    // Mensaje principal en caso de rechazo del crédito
+                    <Typography
+                        variant="body1"
+                        color="primary"
+                        component="div"
+                        style={{ marginTop: '20px' }}
+                    >
+                        {/* Mensaje inicial explicando el rechazo y las recomendaciones */}
+                        La solicitud ha sido rechazada tras no pasar las verificaciones para ser considerada, aquí tiene lo que debe saber para mejorar su próxima solicitud de crédito:
                         <br /><br />
+
+                        {/* Reglas explicadas en secciones con títulos destacados */}
                         <strong>R1. Relación Cuota/Ingreso</strong>
                         <ul>
-                            <li>La relación cuota/ingreso es uno de los factores clave. Esta relación no debe ser mayor a un 35%.</li>
-                            <li>Si la relación cuota/ingreso es mayor que el umbral establecido por el banco (35%), la solicitud se rechaza. Si está dentro del límite, se considera para aprobación.</li>
+                            <li>La relación cuota/ingreso no debe ser mayor al 35%.</li>
+                            <li>Si excede este umbral, la solicitud será rechazada.</li>
                         </ul>
+
                         <strong>R2. Historial Crediticio del Cliente</strong>
                         <ul>
-                            <li>Se revisa el historial crediticio del cliente en DICOM (Directorio de Información Comercial).</li>
-                            <li>Si el cliente tiene un buen historial (sin morosidad o deudas impagas recientes), puede avanzar en el proceso.</li>
-                            <li>Si existen morosidades graves o una alta cantidad de deudas pendientes, la solicitud es rechazada.</li>
+                            <li>Se revisa el historial crediticio en DICOM.</li>
+                            <li>Un historial con morosidad reciente resultará en rechazo.</li>
                         </ul>
+
                         <strong>R3. Antigüedad Laboral y Estabilidad</strong>
                         <ul>
-                            <li>El banco evalúa la estabilidad laboral del cliente, revisando su antigüedad en el empleo actual y su historial de empleo en los últimos años.</li>
-                            <li>Se requiere que el cliente tenga al menos 1 a 2 años de antigüedad en su empleo actual.</li>
-                            <li>Si el cliente es un trabajador independiente, se revisan sus ingresos de los últimos 2 o más años para evaluar su estabilidad financiera.</li>
+                            <li>Se evalúa la antigüedad en el empleo actual (mínimo 1-2 años).</li>
+                            <li>Para trabajadores independientes, se revisan ingresos de los últimos 2 años.</li>
                         </ul>
+
                         <strong>R4. Relación Deuda/Ingreso</strong>
                         <ul>
-                            <li>Además de la relación cuota/ingreso, el banco evalúa la relación total de deudas/ingreso, que considera todas las deudas actuales del cliente.</li>
-                            <li>Si la suma de todas las deudas (incluyendo la cuota proyectada del nuevo crédito) supera el 50% de los ingresos mensuales, la solicitud debe ser rechazada.</li>
+                            <li>El total de deudas no debe superar el 50% de los ingresos mensuales.</li>
                         </ul>
+
                         <strong>R5. Monto Máximo de Financiamiento</strong>
                         <ul>
-                            <li>El banco tiene reglas sobre el porcentaje máximo del valor de la propiedad que puede financiar (ver tabla más arriba), dependiendo del tipo de préstamo.</li>
-                            <li>Por ejemplo, para una primera vivienda, se podría financiar hasta el 80% del valor de la propiedad.</li>
-                            <li>Para una segunda vivienda o propiedades comerciales, el financiamiento podría reducirse al 70% o menos.</li>
+                            <li>El porcentaje financiable depende del tipo de propiedad (ej. 80% para primera vivienda).</li>
                         </ul>
-                        <strong>R6. Edad del solicitante</strong>
+
+                        <strong>R6. Edad del Solicitante</strong>
                         <ul>
-                            <li>El banco considera la edad del solicitante para asegurarse de que el préstamo pueda pagarse antes de que el cliente llegue a la edad de jubilación.</li>
-                            <li>La edad máxima permitida al momento de finalizar el préstamo suele ser 75 años. Si el solicitante es muy cercano a esta edad, el plazo del préstamo se rechaza.</li>
+                            <li>La edad máxima permitida al finalizar el crédito es de 75 años.</li>
                         </ul>
+
+                        {/* Detalle ampliado del historial crediticio */}
                         <strong>R7. Historial Crediticio del Cliente</strong>
                         <ul>
-                            <li> El banco puede revisar si el cliente ha demostrado capacidad de ahorro a través de una cuenta bancaria o inversiones.</li>
-                            R71: Saldo Mínimo Requerido
+                            <li>Se evalúa la capacidad de ahorro a través de reglas específicas:</li>
+
+                            {/* Subreglas del historial crediticio */}
                             <ul>
-                                <li>El cliente debe tener un saldo mínimo en su cuenta de ahorros o inversiones que
-                                    sea al menos el 10% del monto del préstamo solicitado.
+                                <li>
+                                    <strong>R71: Saldo Mínimo Requerido</strong>
+                                    <ul>
+                                        <li>Debe tener un saldo mínimo del 10% del préstamo solicitado.</li>
+                                    </ul>
+                                </li>
+
+                                <li>
+                                    <strong>R72: Historial de Ahorro Consistente</strong>
+                                    <ul>
+                                        <li>Debe mantener saldo positivo en los últimos 12 meses sin retiros significativos.</li>
+                                    </ul>
+                                </li>
+
+                                <li>
+                                    <strong>R73: Depósitos Periódicos</strong>
+                                    <ul>
+                                        <li>Depósitos regulares deben representar al menos el 5% de sus ingresos mensuales.</li>
+                                    </ul>
+                                </li>
+
+                                <li>
+                                    <strong>R74: Relación Saldo/Años de Antigüedad</strong>
+                                    <ul>
+                                        <li>Saldo acumulado del 20% (menos de 2 años) o del 10% (más de 2 años).</li>
+                                    </ul>
+                                </li>
+
+                                <li>
+                                    <strong>R75: Retiros Recientes</strong>
+                                    <ul>
+                                        <li>Retiros mayores al 30% del saldo en los últimos 6 meses se consideran negativos.</li>
+                                    </ul>
                                 </li>
                             </ul>
-                            R72: Historial de Ahorro Consistente
+
+                            {/* Resultado de la evaluación */}
+                            <strong>Resultado de la Evaluación</strong>
                             <ul>
-                                <li>El cliente debe haber mantenido un saldo positivo en su cuenta de ahorros por lo
-                                    menos durante los últimos 12 meses, sin realizar retiros significativos (mayor a
-                                    50% del saldo).
-                                </li>
+                                <li><strong>Aprobación:</strong> Cumple con todas las reglas.</li>
+                                <li><strong>Revisión Adicional:</strong> Cumple con 3 o 4 reglas.</li>
+                                <li><strong>Rechazo:</strong> Cumple con menos de 2 reglas.</li>
                             </ul>
-                            R73: Depósitos Periódicos
-                                <ul>
-                                    <li>
-                                        El cliente debe realizar depósitos regulares en su cuenta de ahorros o
-                                        inversión. Se consideran regulares aquellos realizados con una frecuencia
-                                        mensual o trimestral.
-                                    </li>
-                                    <li>
-                                        Monto Mínimo: Los depósitos deben sumar al menos el 5% de sus ingresos
-                                        mensuales.
-                                    </li>
-                                    <li>
-                                        Acción: Revisar el historial de depósitos de los últimos 12 meses. Si el
-                                        cliente no cumple con esta regularidad o monto mínimo, marcarlo como
-                                        negativo
-                                    </li>
-                                </ul>
-
-                            R74: Relación Saldo/Años de Antigüedad
-                                <ul>
-                                    <li>
-                                        Si el cliente tiene menos de 2 años en su cuenta de ahorros, debe tener un
-                                        saldo acumulado que sea al menos el 20% del monto del préstamo
-                                        solicitado.
-                                    </li>
-                                    <li>
-                                        Si el cliente tiene 2 años o más con la cuenta, un saldo acumulado del 10%
-                                        será suficiente.
-                                    </li>
-                                    <li>
-                                        Acción: Revisar la antigüedad de la cuenta y el saldo acumulado. Si no
-                                        cumple con los porcentajes requeridos según su antigüedad, marcarlo como
-                                        negativo.
-                                    </li>
-                                </ul>
-
-                            R75: Retiros Recientes
-                                <ul>
-                                    <li>
-                                        Si el cliente ha realizado un retiro superior al 30% del saldo de su cuenta
-                                        en los últimos 6 meses, marcar este punto como negativo, ya que indica
-                                        una posible falta de estabilidad financiera.
-                                    </li>
-                                    <li>
-                                        Acción: Revisar los movimientos de la cuenta para identificar retiros
-                                        recientes y evaluar su impacto.
-                                    </li>
-                                </ul>
-
-                            Resultado de la Evaluación
-                                <ul>
-                                    <li>
-                                        Aprobación: Si el cliente cumple con las 5 reglas, marcar la capacidad de
-                                        ahorro como “sólida” y continuar con la evaluación del crédito.
-                                    </li>
-                                    <li>
-                                        Revisión Adicional: Si el cliente cumple con 3 o 4 de las 5 reglas, marcar
-                                        la
-                                        capacidad de ahorro como "moderada" e indicar que se requiere una
-                                        revisión adicional.
-                                    </li>
-                                    <li>
-                                        Rechazo: Si el cliente cumple con menos de 2 reglas, marcar la capacidad
-                                        de ahorro como “insuficiente” y proceder a rechazar.
-                                    </li>
-                                </ul>
                         </ul>
                     </Typography>
                 ) : null
             ) : (
+                // Mensaje de carga mientras se obtiene la información de crédito
                 <Typography variant="body1">Cargando información de crédito...</Typography>
             )}
 
-
-            {creditEvaluationsEntity ? (
-                creditEvaluationsEntity.follow_up === 7 ? (
+            {credit ? (
+                followUp === 7 ? (
                     <Typography variant="body1" color="textSecondary">
                         Cancelada por el cliente
                     </Typography>
@@ -590,8 +810,8 @@ const CreditEvaluation = () => {
                 <Typography variant="body1">Cargando información de crédito...</Typography>
             )}
 
-            {creditEvaluationsEntity ? (
-                creditEvaluationsEntity.follow_up === 8 ? (
+            {credit ? (
+                followUp === 8 ? (
                     <>
                         <Typography variant="body1" color="textSecondary">
                             La solicitud ha sido aprobada y se está ejecutando el proceso de
@@ -617,16 +837,6 @@ const CreditEvaluation = () => {
             {errorMessage && (
                 <Box sx={{marginTop: '20px', color: 'red'}}>
                     <Typography variant="body2">{errorMessage}</Typography>
-                </Box>
-            )}
-
-            {greatMessage.length > 0 && (
-                <Box sx={{marginTop: '20px'}}>
-                    {greatMessage.map((message, index) => (
-                        <Typography key={index} variant="body1" sx={{color: 'green'}}>
-                            {message}
-                        </Typography>
-                    ))}
                 </Box>
             )}
         </Box>

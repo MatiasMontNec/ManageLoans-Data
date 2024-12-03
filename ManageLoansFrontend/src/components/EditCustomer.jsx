@@ -2,21 +2,26 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Box, TextField, Button, FormControl } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
-import customersService from "../services/credit-application.js";
+import userRegistration from "../services/user-registration.js";
+import trackingRequests from "../services/tracking-requests.js";
+import creditEvaluation from "../services/credit-evaluation.js";
+import creditSimulator from "../services/credit-simulator.js";
 
 const EditCustomer = () => {
     const { id } = useParams();
     useEffect(() => {
         const fetchCustomerData = async () => {
             try {
-                const response = await customersService.getCustomerById(id);
-                setDrafts(response.data.savingAccount.drafts);
-                setAntique(response.data.savingAccount.antique);
-                setSelf_employed_worker(response.data.savingAccount.self_employed_worker);
-                setAmount(response.data.savingAccount.amount);
-                setWorkHistories(response.data.workHistory);
+                const response = await userRegistration.getCustomerById(id);
+                const response2 = await trackingRequests.getSavingAccountByCustomerId(id);
+                const response3 = await creditEvaluation.getWorkHistoriesByCustomerId(id);
+                const response4 = await creditSimulator.getAccountDraftsBySavingAccountId(response2.data.id);
+                setDrafts(response4.data);
+                setSelf_employed_worker(response2.data.self_employed_worker);
+                setAmount(response2.data.amount);
+                setAntique(response2.data.antique);
+                setWorkHistories(response3.data);
                 setName(response.data.name);
-
             } catch (error) {
                 console.error("Error al cargar los datos del cliente:", error);
             }
