@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { Box, TextField, Button, FormControl } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
-import customersService from "../services/credit-application.js";
+import userRegistration from "../services/user-registration.js";
+import creditEvaluation from "../services/credit-evaluation.js";
+import trackingRequests from "../services/tracking-requests.js";
+import creditSimulator from "../services/credit-simulator.js";
 
 const NewCustomer = () => {
     const [savingAccountEntity, setSavingAccountEntity] = useState({
@@ -103,26 +106,48 @@ const NewCustomer = () => {
         if (validateForm()) {
             try {
                 console.log("Se empieza a crear el cliente");
-                const date = new Date().toISOString().split('T')[0];
-                const customerHistory2 = {
-                    content: "El cliente ha sido creado",
-                    date
-                };
-                const savingAccount = {
-                    drafts: drafts,
-                    antique: savingAccountEntity.antique,
-                    self_employed_worker: savingAccountEntity.self_employed_worker,
-                    amount: savingAccountEntity.amount
-                };
-                const customerRequest = {
-                    creditEvaluations: [],
-                    customerHistory: [customerHistory2],
-                    workHistory: workHistories,
-                    savingAccount: savingAccount,
+                const customer = {
                     yearBirth: new Date(birthDate).getFullYear(),
                     name
-                };
-                await customersService.saveCustomer(customerRequest);
+                }
+                userRegistration.saveCustomer(customer)
+                    .then((response) => {
+                        workHistories.forEach((workHistory) => {
+                            const workHistoryEntity = {
+                                customerId: response.data.id,
+                                income: workHistory.income,
+                                debt: workHistory.debt,
+                                creditHistory: workHistory.creditHistory,
+                                date: workHistory.date
+                            }
+                            creditEvaluation.saveWorkHistory(workHistoryEntity);
+                        })
+                        const date = new Date().toISOString().split('T')[0];
+                        const customerHistory2 = {
+                            customerId: response.data.id,
+                            content: "El cliente ha sido creado",
+                            date
+                        };
+                        userRegistration.saveCustomerHistory(customerHistory2);
+                        const savingAccount = {
+                            customerId: response.data.id,
+                            antique: savingAccountEntity.antique,
+                            self_employed_worker: savingAccountEntity.self_employed_worker,
+                            amount: savingAccountEntity.amount
+                        };
+                        trackingRequests.saveSavingAccount(savingAccount)
+                            .then((response) => {
+                                drafts.forEach((draft) => {
+                                    const accountDraft = {
+                                        savingAccountId: response.data.id,
+                                        date: draft.date,
+                                        drafts: draft.drafts,
+                                        amountAtThatTime: draft.amountAtThatTime
+                                    };
+                                    creditSimulator.saveAccountDraft(accountDraft);
+                                })
+                            })
+                    })
                 console.log("Cliente guardado con exito");
                 setSuccessMessage("Usuario creado con éxito! Vaya a la lista de usuarios para verlo.");
             } catch (error) {

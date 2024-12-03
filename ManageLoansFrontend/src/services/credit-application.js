@@ -129,4 +129,5 @@ export default {
     calculateTotalCost,
     modifyCredit,
     LoanTypesTable,
+    getCreditEvaluationById
 };

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import customersService from "../services/credit-application.js";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -13,14 +12,14 @@ import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EventNoteIcon from "@mui/icons-material/EventNote";
 import CreditCardIcon from "@mui/icons-material/CreditCard";
+import userRegistration from "../services/user-registration.js";
 
 const ListCustomer = () => {
     const [customers, setCustomers] = useState([]);
     const navigate = useNavigate();
 
     const init = () => {
-        customersService
-            .getAllCustomers()
+        userRegistration.getAllCustomers()
             .then((response) => {
                 console.log("Mostrando listado de todos los clientes.", response.data);
                 setCustomers(response.data);

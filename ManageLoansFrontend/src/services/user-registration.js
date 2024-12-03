@@ -16,8 +16,8 @@ const deleteCustomer = (customerId) => {
 };
 
 // Guardar un cliente completo
-const saveCustomer = (completeEntity) => {
-    return httpClient.post(`/user-registration/save_c`, completeEntity);
+const saveCustomer = (customer) => {
+    return httpClient.post(`/user-registration/save_c`, customer);
 };
 
 // Obtener historial de un cliente por ID

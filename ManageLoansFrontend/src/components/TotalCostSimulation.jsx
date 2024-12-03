@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Box, Button, FormControl, TextField, Typography, Select, MenuItem, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
+import { Box, Button, FormControl, TextField, Typography, Select, MenuItem} from '@mui/material';
 import CalculateIcon from '@mui/icons-material/Calculate';
-import manageService from "../services/user-registration.js";
-import creditEvaluationsService from "../services/credit-simulator.js";
+import creditApplication from "../services/credit-application.js";
+import {LoanTypesTable} from "../services/credit-application.js"
 
 const TotalCostSimulation = () => {
     const [desiredAmount, setDesiredAmount] = useState("");
@@ -16,15 +16,22 @@ const TotalCostSimulation = () => {
 
     const handleCalculate = (e) => {
         e.preventDefault();
-        const interestRatePercentage = interestRate / 100;
-
-        manageService.checkTotalCostCalculation(
-            desiredAmount,
-            propertyValue,
-            timeLimit,
-            interestRatePercentage,
-            typeLoan
-        )
+        const credit = {
+            id: 0,
+            customerId: 0,
+            follow_up: 0,
+            executiveWorking: 0,
+            amountWanted: desiredAmount,
+            amountMax: propertyValue,
+            interestRate: interestRate/100,
+            typeLoan,
+            timeLimit: timeLimit,
+            pdfFilePath1: null,
+            pdfFilePath2: null,
+            pdfFilePath3: null,
+            pdfFilePath4: null,
+        }
+        creditApplication.calculateMonthlyFee(credit)
             .then((response) => {
                 if (response.data === -1) {
                     setErrorMessage("Por favor, vuelva a reingresar los datos, ya que el cálculo fue erróneo respecto a lo solicitado");
@@ -42,15 +49,22 @@ const TotalCostSimulation = () => {
 
     const handleCalculate2 = (e) => {
         e.preventDefault();
-        const interestRatePercentage = interestRate / 100;
-
-        creditEvaluationsService.calculateMonthlyFee(
-            desiredAmount,
-            propertyValue,
-            timeLimit,
-            interestRatePercentage,
-            typeLoan
-        )
+        const credit = {
+            id: 0,
+            customerId: 0,
+            follow_up: 0,
+            executiveWorking: 0,
+            amountWanted: desiredAmount,
+            amountMax: propertyValue,
+            interestRate: interestRate/100,
+            typeLoan,
+            timeLimit: timeLimit,
+            pdfFilePath1: null,
+            pdfFilePath2: null,
+            pdfFilePath3: null,
+            pdfFilePath4: null,
+        }
+        creditApplication.calculateTotalCost(credit)
             .then((response) => {
                 if(response.data === -1){
                     setErrorMessage("Por favor, vuelva a reingresar los datos, ya que el cálculo fue erróneo respecto a lo solicitado");
@@ -70,45 +84,7 @@ const TotalCostSimulation = () => {
         <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center">
             <Typography variant="h4">Simulación de Costos!</Typography>
             <hr />
-
-            <TableContainer component={Paper} style={{ marginBottom: "20px" }}>
-                <Table aria-label="tabla de tipos de préstamo">
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Tipo de Préstamo</TableCell>
-                            <TableCell>Plazo Máximo</TableCell>
-                            <TableCell>Tasa Interés Anual</TableCell>
-                            <TableCell>Monto Máximo de Financiamiento</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        <TableRow>
-                            <TableCell>1</TableCell>
-                            <TableCell>30 años</TableCell>
-                            <TableCell>3.5% - 5%</TableCell>
-                            <TableCell>80% del valor de la propiedad</TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell>2</TableCell>
-                            <TableCell>20 años</TableCell>
-                            <TableCell>4% - 6%</TableCell>
-                            <TableCell>70% del valor de la propiedad</TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell>3</TableCell>
-                            <TableCell>25 años</TableCell>
-                            <TableCell>5% - 7%</TableCell>
-                            <TableCell>60% del valor de la propiedad</TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell>4</TableCell>
-                            <TableCell>15 años</TableCell>
-                            <TableCell>4.5% - 6%</TableCell>
-                            <TableCell>50% del valor de la propiedad</TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-            </TableContainer>
+            <LoanTypesTable />
             <hr />
             <form onSubmit={handleCalculate}>
                 <FormControl fullWidth margin="normal">

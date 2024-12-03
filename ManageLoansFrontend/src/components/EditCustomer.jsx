@@ -95,29 +95,58 @@ const EditCustomer = () => {
         e.preventDefault();
         if (validateForm()) {
             try {
-                console.log("Se empieza a crear el cliente");
-                const date = new Date().toISOString().split('T')[0];
-                const customerHistory2 = {
-                    content: "El cliente ha sido modificado",
-                    date
-                };
+                //Customer no se modifica
+                //Datos para saving account
                 const savingAccount = {
-                    drafts: drafts,
+                    customerId: id,
                     antique: antique,
                     self_employed_worker: self_employed_worker,
                     amount: amount
                 };
-
-                const customerRequest = {
-                    workHistoryEntities: workHistories,
-                    savingAccountEntity: savingAccount,
-                    creditEvaluationsEntities: [],
-                    customerHistoryEntities: customerHistory2,
+                trackingRequests.saveSavingAccount(savingAccount)
+                    .then(() => {
+                        //Procedemos a guardar cada accountDraft
+                        trackingRequests.getSavingAccountByCustomerId(id)
+                            .then((response) => {
+                                const savingAccountId = response.data.id;
+                                drafts.forEach((draft) => {
+                                    const accountDraft = {
+                                        savingAccountId: savingAccountId,
+                                        date: draft.date,
+                                        drafts: draft.drafts,
+                                        amountAtThatTime: draft.amountAtThatTime
+                                    };
+                                    creditSimulator.saveAccountDraft(accountDraft)
+                                        .then(() => {
+                                            console.log(`Draft guardado con éxito para la cuenta de ahorros ID: ${savingAccountId}`);
+                                        })
+                                        .catch((error) => {
+                                            console.error(`Error al guardar el draft: ${error}`);
+                                        });
+                                });
+                            })
+                    })
+                //Datos para work history
+                workHistories.forEach((workHistory) => {
+                    const workHistoryEntity = {
+                        customerId: id,
+                        income: workHistory.income,
+                        debt: workHistory.debt,
+                        creditHistory: workHistory.creditHistory,
+                        date: workHistory.date
+                    }
+                    creditEvaluation.saveWorkHistory(workHistoryEntity).then(() => {
+                        console.log("listo workHistory");
+                    })
+                })
+                //Datos para customer history
+                const date = new Date().toISOString().split('T')[0];
+                const customerHistory2 = {
+                    customerId: id,
+                    content: "El cliente ha sido modificado",
+                    date
                 };
-
-                console.log("Datos a enviar:", JSON.stringify(customerRequest, null, 2));
-                const newCustomer = await customersService.updateCustomer(id, customerRequest);
-                console.log("Cliente editado con exito:", JSON.stringify(newCustomer.data, null, 2));
+                await userRegistration.saveCustomerHistory(customerHistory2);
                 setSuccessMessage("Usuario editado con éxito! Vaya a la lista de usuarios para verlo.");
             } catch (error) {
                 console.error("Error al guardar el cliente:", error);

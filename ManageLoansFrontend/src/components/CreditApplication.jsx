@@ -2,10 +2,12 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import creditApplication from "../services/credit-application.js";
 import userRegistration from "../services/user-registration.js";
+import trackingRequests from "../services/tracking-requests.js";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import {LoanTypesTable} from "../services/credit-application.js"
+import creditEvaluation from "../services/credit-evaluation.js";
 
 const CreditApplication = () => {
     const { id } = useParams();
@@ -34,14 +36,20 @@ const CreditApplication = () => {
     useEffect(() => {
         const fetchCustomer = async () => {
             try {
-                const errors = [];
                 const response = await creditApplication.getCustomerById(id);
                 console.log("Datos a enviar:", JSON.stringify(response.data, null, 2));
                 setYearBirth(response.data.yearBirth);
-                setDrafts(response.data.savingAccount.drafts);
-                setAntique(response.data.savingAccount.antique);
-                setAmount(response.data.savingAccount.amount);
-                setWorkHistories(response.data.workHistory);
+                //Cargamos el savingAccount
+                trackingRequests.getSavingAccountByCustomerId(id)
+                    .then((response) => {
+                        setDrafts(response.data.drafts);
+                        setAntique(response.data.antique);
+                        setAmount(response.data.amount);
+                    });
+                creditEvaluation.getWorkHistoriesByCustomerId(id)
+                    .then(response => {
+                        setWorkHistories(response.data);
+                    });
             } catch (error) {
                 console.error("Error al obtener el cliente", error);
             }
@@ -95,7 +103,7 @@ const CreditApplication = () => {
             executiveWorking: 0,
             amountWanted: amount2,
             amountMax: amountMax,
-            interestRate: interestRate,
+            interestRate: interestRate/100,
             typeloan,
             timeLimit: timeLimit,
             pdfFilePath1: pdfFiles[0]?.name || null,

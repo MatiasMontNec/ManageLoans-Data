@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import creditEvaluationsService from "../services/credit-simulator.js";
-import manageService from "../services/user-registration.js";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -10,7 +8,10 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
-import customersService from "../services/credit-application.js";
+import creditApplication from "../services/credit-application.js";
+import userRegistration from "../services/user-registration.js";
+import trackingRequests from "../services/tracking-requests.js";
+
 
 const ListCredit = () => {
     const [creditEvaluations, setCreditEvaluations] = useState([]);
@@ -23,56 +24,38 @@ const ListCredit = () => {
     }, [customerId]);
 
     const fetchCreditEvaluations = () => {
-        creditEvaluationsService
-            .getCreditEvaluationsById(customerId)
+        creditApplication.getCreditsByCustomerId(customerId)
             .then((response) => {
                 setCreditEvaluations(response.data);
-                customersService.getCustomerById(customerId)
-                    .then((response2) => {
-                        setCustomer(response2.data);
-                    })
-                    .catch((error) => {
-                        console.error("Error al obtener el cliente asociado", error);
-                    })
             })
             .catch((error) => {
                 console.error("Error al obtener las evaluaciones de crédito", error);
             });
+        userRegistration.getCustomerById(customerId)
+            .then((response) => {
+                setCustomer(response.data);
+            })
     };
 
     const handleNavigateToEvaluation = (creditId) => {
         navigate(`/creditEvaluation/${customer.id}/${creditId}`);
     };
 
-    const handleCancelCredit = (creditEvaluationsEntity) => {
+    const handleCancelCredit = async (creditId) => {
         const date = new Date().toISOString().split('T')[0];
         const customerHistory2 = {
+            customerId: customerId,
             content: "Credito evaluado cancelado por cliente",
             date
         };
-        const customerRequest = {
-            workHistoryEntities: null,
-            savingAccountEntity: null,
-            creditEvaluationsEntities: null,
-            customerHistoryEntities: customerHistory2,
-        };
-        customersService.updateCustomer(id, customerRequest);
-        const manageRequest = {
-            creditEvaluations: creditEvaluationsEntity,
-            customers: customer
-        }
-        manageService
-            .checkCustomerCancellation(manageRequest)
+        await userRegistration.saveCustomerHistory(customerHistory2);
+        trackingRequests.modifyFollowUp(creditId,-7)
             .then(() => {
                 fetchCreditEvaluations();
             })
             .catch((error) => {
                 console.error("Error al cancelar la evaluación de crédito", error);
             });
-    };
-
-    const getStatusReviewText = (status_review) => {
-        return status_review === 1 ? "CUMPLIENDO" : status_review === -1 ? "RECHAZADA" : "";
     };
 
     const getFollowUpText = (follow_up) => {
@@ -112,7 +95,6 @@ const ListCredit = () => {
             <Table sx={{ minWidth: 650 }} size="small" aria-label="credit evaluations table">
                 <TableHead>
                     <TableRow>
-                        <TableCell align="left" sx={{ fontWeight: "bold" }}>Estado de Revisión</TableCell>
                         <TableCell align="left" sx={{ fontWeight: "bold" }}>Seguimiento</TableCell>
                         <TableCell align="left" sx={{ fontWeight: "bold" }}>Ejecutivo Trabajando</TableCell>
                         <TableCell align="right" sx={{ fontWeight: "bold" }}>Monto</TableCell>
@@ -122,12 +104,11 @@ const ListCredit = () => {
                 <TableBody>
                     {creditEvaluations.map((credit) => (
                         <TableRow key={credit.id} sx={{ "&:last-child td, &:last-child th": { border: 0 } }}>
-                            <TableCell align="left">{getStatusReviewText(credit.status_review)}</TableCell>
                             <TableCell align="left">{getFollowUpText(credit.follow_up)}</TableCell>
                             <TableCell align="left">{getExecutiveWorkingText(credit.executiveWorking)}</TableCell>
                             <TableCell align="right">{credit.amount}</TableCell>
                             <TableCell align="center">
-                                {credit.status_review === 1 && credit.follow_up !== 8 &&(
+                                {credit.follow_up !== 8 &&(
                                     <>
                                         <Button
                                             variant="contained"
@@ -139,14 +120,14 @@ const ListCredit = () => {
                                         <Button
                                             variant="outlined"
                                             color="secondary"
-                                            onClick={() => handleCancelCredit(credit)}
+                                            onClick={() => handleCancelCredit(credit.id)}
                                             sx={{ marginLeft: 1 }}
                                         >
                                             Cancelar
                                         </Button>
                                     </>
                                 )}
-                                {(credit.status_review === -1 || credit.follow_up === 6) && (
+                                {(credit.follow_up === 6) && (
                                     <>
                                         <div>
                                             Operaciones no disponible

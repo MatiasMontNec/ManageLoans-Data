@@ -7,18 +7,17 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
-import customersService from "../services/credit-application.js";
+import userRegistration from "../services/user-registration.js";
 
 const ListActions = () => {
     const { customerId } = useParams();
     const [customerHistory, setCustomerHistory] = useState([]);
 
     useEffect(() => {
-        customersService
-            .getCustomerById(customerId)
+        userRegistration.getCustomerHistoryById(customerId)
             .then(response => {
                 console.log("Datos a enviar:", JSON.stringify(response.data, null, 2));
-                setCustomerHistory(response.data.customerHistory);
+                setCustomerHistory(response.data);
             })
             .catch(error => {
                 console.log("Error al obtener el historial del cliente", error);
