@@ -13,15 +13,16 @@ const EditCustomer = () => {
         const fetchCustomerData = async () => {
             try {
                 const response = await userRegistration.getCustomerById(id);
+                setName(response.data.name);
                 const response2 = await trackingRequests.getSavingAccountByCustomerId(id);
-                const response3 = await creditEvaluation.getWorkHistoriesByCustomerId(id);
-                const response4 = await creditSimulator.getAccountDraftsBySavingAccountId(response2.data.id);
-                setDrafts(response4.data);
+                setIdSavingAccount(response2.data.id);
                 setSelf_employed_worker(response2.data.self_employed_worker);
                 setAmount(response2.data.amount);
                 setAntique(response2.data.antique);
+                const response3 = await creditEvaluation.getWorkHistoriesByCustomerId(id);
                 setWorkHistories(response3.data);
-                setName(response.data.name);
+                const response4 = await creditSimulator.getAccountDraftsBySavingAccountId(response2.data.id);
+                setDrafts(response4.data);
             } catch (error) {
                 console.error("Error al cargar los datos del cliente:", error);
             }
@@ -29,6 +30,7 @@ const EditCustomer = () => {
         fetchCustomerData();
     }, [id]);
 
+    const [idSavingAccount,setIdSavingAccount] = useState();
     const [name, setName] = useState("");
     const [antique,setAntique] = useState(0);
     const [self_employed_worker,setSelf_employed_worker] = useState(0);
@@ -69,7 +71,7 @@ const EditCustomer = () => {
         const newErrors = [];
 
         workHistories.forEach((history, index) => {
-            if (!history.income || !history.debt || !history.creditHistory || !history.date) {
+            if (!history.income || !history.creditHistory || !history.date) {
                 newErrors.push(`WorkHistory #${index + 1} tiene campos vacíos.`);
             }else{
                 if(history.income < 500){
@@ -98,6 +100,7 @@ const EditCustomer = () => {
                 //Customer no se modifica
                 //Datos para saving account
                 const savingAccount = {
+                    id: idSavingAccount,
                     customerId: id,
                     antique: antique,
                     self_employed_worker: self_employed_worker,

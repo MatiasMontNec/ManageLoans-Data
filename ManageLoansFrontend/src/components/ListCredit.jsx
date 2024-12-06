@@ -72,9 +72,9 @@ const ListCredit = () => {
                 return "En aprobación final";
             case 5:
                 return "Aprobada";
-            case 6:
+            case -6:
                 return "Rechazada";
-            case 7:
+            case -7:
                 return "Cancelada por el cliente";
             case 8:
                 return "En desembolso";
@@ -104,11 +104,11 @@ const ListCredit = () => {
                 <TableBody>
                     {creditEvaluations.map((credit) => (
                         <TableRow key={credit.id} sx={{ "&:last-child td, &:last-child th": { border: 0 } }}>
-                            <TableCell align="left">{getFollowUpText(credit.follow_up)}</TableCell>
+                            <TableCell align="left">{getFollowUpText(credit.followUp)}</TableCell>
                             <TableCell align="left">{getExecutiveWorkingText(credit.executiveWorking)}</TableCell>
-                            <TableCell align="right">{credit.amount}</TableCell>
+                            <TableCell align="right">{credit.amountWanted}</TableCell>
                             <TableCell align="center">
-                                {credit.follow_up !== 8 &&(
+                                {credit.followUp !== 8 && credit.followUp !== -7 &&(
                                     <>
                                         <Button
                                             variant="contained"
@@ -127,7 +127,7 @@ const ListCredit = () => {
                                         </Button>
                                     </>
                                 )}
-                                {(credit.follow_up === 6) && (
+                                {(credit.followUp === -6) && (
                                     <>
                                         <div>
                                             Operaciones no disponible
@@ -135,7 +135,15 @@ const ListCredit = () => {
                                         para créditos rechazados
                                     </>
                                 )}
-                                {credit.follow_up === 8 && (
+                                {(credit.followUp === -7) && (
+                                    <>
+                                        <div>
+                                            Operaciones no disponible
+                                        </div>
+                                        para créditos cancelados
+                                    </>
+                                )}
+                                {credit.followUp === 8 && (
                                     <>
                                         <div>
                                             Operaciones no disponible para créditos aceptados y

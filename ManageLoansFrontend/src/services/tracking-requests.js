@@ -2,7 +2,7 @@ import httpClient from "../http-common";
 
 // Obtiene una cuenta de ahorro por el customerId
 const getSavingAccountByCustomerId = (customerId) => {
-    return httpClient.get(`/saving-accounts/customer/${customerId}`);
+    return httpClient.get(`/tracking-requests/customer/${customerId}`);
 };
 
 // Guarda una cuenta de ahorro

@@ -6,8 +6,9 @@ import trackingRequests from "../services/tracking-requests.js";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import {LoanTypesTable} from "../services/credit-application.js"
+import {LoanTypesTable} from "./functions.jsx"
 import creditEvaluation from "../services/credit-evaluation.js";
+import creditSimulator from "../services/credit-simulator.js";
 
 const CreditApplication = () => {
     const { id } = useParams();
@@ -36,13 +37,16 @@ const CreditApplication = () => {
     useEffect(() => {
         const fetchCustomer = async () => {
             try {
-                const response = await creditApplication.getCustomerById(id);
+                const response = await userRegistration.getCustomerById(id);
                 console.log("Datos a enviar:", JSON.stringify(response.data, null, 2));
                 setYearBirth(response.data.yearBirth);
                 //Cargamos el savingAccount
                 trackingRequests.getSavingAccountByCustomerId(id)
                     .then((response) => {
-                        setDrafts(response.data.drafts);
+                        creditSimulator.getAccountDraftsBySavingAccountId(response.data.id)
+                            .then((response) => {
+                                setDrafts(response.data);
+                            })
                         setAntique(response.data.antique);
                         setAmount(response.data.amount);
                     });
@@ -103,8 +107,8 @@ const CreditApplication = () => {
             executiveWorking: 0,
             amountWanted: amount2,
             amountMax: amountMax,
-            interestRate: interestRate/100,
-            typeloan,
+            interestRate: interestRate,
+            typeLoan: typeloan,
             timeLimit: timeLimit,
             pdfFilePath1: pdfFiles[0]?.name || null,
             pdfFilePath2: pdfFiles[1]?.name || null,
@@ -115,10 +119,12 @@ const CreditApplication = () => {
 
     const handleCreditCreation = async () => {
         const isValid = validateCustomerData();
+        console.log("TypeLoan es: ", typeloan);
         if (!isValid || !amount2 || !amountMax || !interestRate || !typeloan) return;
 
         const pdfFiles = [pdfFile1, pdfFile2, pdfFile3, pdfFile4];
         const creditEvaluation = createCreditEvaluation(typeloan, pdfFiles);
+        console.log("PDFS entran como: ", creditEvaluation);
 
         try {
             const saveResponse = await creditApplication.saveCredit(creditEvaluation);
@@ -174,6 +180,8 @@ const CreditApplication = () => {
                         variant="outlined"
                         value={interestRate}
                         onChange={(e) => setInterestRate(e.target.value)}
+                        helperText="Debe estar entre 3.5% y 7%"
+                        inputProps={{ min: 3.5, max: 7, step: 0.1 }}
                         type="number"
                         required
                         fullWidth
@@ -229,9 +237,9 @@ const CreditApplication = () => {
                         <option value={0} disabled>
                             Seleccione un tipo de préstamo
                         </option>
-                        <option value={1}>1: Préstamo personal</option>
-                        <option value={2}>2: Préstamo hipotecario</option>
-                        <option value={3}>3: Préstamo empresarial</option>
+                        <option value={1}>1: Préstamo de primera vivienda</option>
+                        <option value={2}>2: Préstamo de segunda vivienda</option>
+                        <option value={3}>3: Préstamo de propiedades comerciales</option>
                         <option value={4}>4: Préstamo para remodelación</option>
                     </select>
 
@@ -240,39 +248,158 @@ const CreditApplication = () => {
                             <Typography variant="h6">Suba los documentos necesarios:</Typography>
 
                             {(typeloan === 1 || typeloan === 2 || typeloan === 3 || typeloan === 4) && (
-                                <div style={{ marginBottom: "10px" }}>
-                                    <label>Comprobante de ingresos:</label>
-                                    <input type="file" accept="application/pdf" onChange={(e) => setPdfFile1(e.target.files[0])} required />
+                                <div style={{ marginBottom: "15px" }}>
+                                    <Typography variant="body1">Comprobante de ingresos:</Typography>
+                                    <Button
+                                        variant="outlined"
+                                        component="label"
+                                        color="primary"
+                                        style={{ marginRight: "10px" }}
+                                    >
+                                        Seleccionar archivo
+                                        <input
+                                            type="file"
+                                            accept="application/pdf"
+                                            hidden
+                                            onChange={(e) => setPdfFile1(e.target.files[0])}
+                                            required
+                                        />
+                                    </Button>
+                                    {pdfFile1 && (
+                                        <Typography variant="body2" color="textSecondary">
+                                            {pdfFile1.name}
+                                        </Typography>
+                                    )}
                                 </div>
                             )}
+
                             {(typeloan === 1 || typeloan === 2 || typeloan === 3 || typeloan === 4) && (
-                                <div style={{ marginBottom: "10px" }}>
-                                    <label>Certificado de avalúo:</label>
-                                    <input type="file" accept="application/pdf" onChange={(e) => setPdfFile2(e.target.files[0])} required />
+                                <div style={{ marginBottom: "15px" }}>
+                                    <Typography variant="body1">Certificado de avalúo:</Typography>
+                                    <Button
+                                        variant="outlined"
+                                        component="label"
+                                        color="primary"
+                                        style={{ marginRight: "10px" }}
+                                    >
+                                        Seleccionar archivo
+                                        <input
+                                            type="file"
+                                            accept="application/pdf"
+                                            hidden
+                                            onChange={(e) => setPdfFile2(e.target.files[0])}
+                                            required
+                                        />
+                                    </Button>
+                                    {pdfFile2 && (
+                                        <Typography variant="body2" color="textSecondary">
+                                            {pdfFile2.name}
+                                        </Typography>
+                                    )}
                                 </div>
                             )}
+
                             {(typeloan === 1 || typeloan === 2 || typeloan === 3) && (
-                                <div style={{ marginBottom: "10px" }}>
-                                    <label>Historial crediticio:</label>
-                                    <input type="file" accept="application/pdf" onChange={(e) => setPdfFile3(e.target.files[0])} required />
+                                <div style={{ marginBottom: "15px" }}>
+                                    <Typography variant="body1">Historial crediticio:</Typography>
+                                    <Button
+                                        variant="outlined"
+                                        component="label"
+                                        color="primary"
+                                        style={{ marginRight: "10px" }}
+                                    >
+                                        Seleccionar archivo
+                                        <input
+                                            type="file"
+                                            accept="application/pdf"
+                                            hidden
+                                            onChange={(e) => setPdfFile3(e.target.files[0])}
+                                            required
+                                        />
+                                    </Button>
+                                    {pdfFile3 && (
+                                        <Typography variant="body2" color="textSecondary">
+                                            {pdfFile3.name}
+                                        </Typography>
+                                    )}
                                 </div>
                             )}
+
                             {typeloan === 2 && (
-                                <div style={{ marginBottom: "10px" }}>
-                                    <label>Escritura de la primera vivienda:</label>
-                                    <input type="file" accept="application/pdf" onChange={(e) => setPdfFile4(e.target.files[0])} required />
+                                <div style={{ marginBottom: "15px" }}>
+                                    <Typography variant="body1">Escritura de la primera vivienda:</Typography>
+                                    <Button
+                                        variant="outlined"
+                                        component="label"
+                                        color="primary"
+                                        style={{ marginRight: "10px" }}
+                                    >
+                                        Seleccionar archivo
+                                        <input
+                                            type="file"
+                                            accept="application/pdf"
+                                            hidden
+                                            onChange={(e) => setPdfFile4(e.target.files[0])}
+                                            required
+                                        />
+                                    </Button>
+                                    {pdfFile4 && (
+                                        <Typography variant="body2" color="textSecondary">
+                                            {pdfFile4.name}
+                                        </Typography>
+                                    )}
                                 </div>
                             )}
+
                             {typeloan === 3 && (
-                                <div style={{ marginBottom: "10px" }}>
-                                    <label>Plan de negocios:</label>
-                                    <input type="file" accept="application/pdf" onChange={(e) => setPdfFile4(e.target.files[0])} required />
+                                <div style={{ marginBottom: "15px" }}>
+                                    <Typography variant="body1">Plan de negocios:</Typography>
+                                    <Button
+                                        variant="outlined"
+                                        component="label"
+                                        color="primary"
+                                        style={{ marginRight: "10px" }}
+                                    >
+                                        Seleccionar archivo
+                                        <input
+                                            type="file"
+                                            accept="application/pdf"
+                                            hidden
+                                            onChange={(e) => setPdfFile4(e.target.files[0])}
+                                            required
+                                        />
+                                    </Button>
+                                    {pdfFile4 && (
+                                        <Typography variant="body2" color="textSecondary">
+                                            {pdfFile4.name}
+                                        </Typography>
+                                    )}
                                 </div>
                             )}
+
                             {typeloan === 4 && (
-                                <div style={{ marginBottom: "10px" }}>
-                                    <label>Presupuesto de la remodelación:</label>
-                                    <input type="file" accept="application/pdf" onChange={(e) => setPdfFile2(e.target.files[0])} required />
+                                <div style={{ marginBottom: "15px" }}>
+                                    <Typography variant="body1">Presupuesto de la remodelación:</Typography>
+                                    <Button
+                                        variant="outlined"
+                                        component="label"
+                                        color="primary"
+                                        style={{ marginRight: "10px" }}
+                                    >
+                                        Seleccionar archivo
+                                        <input
+                                            type="file"
+                                            accept="application/pdf"
+                                            hidden
+                                            onChange={(e) => setPdfFile2(e.target.files[0])}
+                                            required
+                                        />
+                                    </Button>
+                                    {pdfFile2 && (
+                                        <Typography variant="body2" color="textSecondary">
+                                            {pdfFile2.name}
+                                        </Typography>
+                                    )}
                                 </div>
                             )}
                         </div>

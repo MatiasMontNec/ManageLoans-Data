@@ -22,7 +22,7 @@ const saveCustomer = (customer) => {
 
 // Obtener historial de un cliente por ID
 const getCustomerHistoryById = (id) => {
-    return httpClient.get(`/user-registration/${id}`);
+    return httpClient.get(`/user-registration/customer-history/${id}`);
 };
 
 // Guardar un nuevo historial de cliente

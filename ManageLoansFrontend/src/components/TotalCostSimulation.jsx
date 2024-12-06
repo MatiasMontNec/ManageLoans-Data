@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, Button, FormControl, TextField, Typography, Select, MenuItem} from '@mui/material';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import creditApplication from "../services/credit-application.js";
-import {LoanTypesTable} from "../services/credit-application.js"
+import {LoanTypesTable} from "./functions.jsx"
 
 const TotalCostSimulation = () => {
     const [desiredAmount, setDesiredAmount] = useState("");
@@ -23,7 +23,7 @@ const TotalCostSimulation = () => {
             executiveWorking: 0,
             amountWanted: desiredAmount,
             amountMax: propertyValue,
-            interestRate: interestRate/100,
+            interestRate: interestRate,
             typeLoan,
             timeLimit: timeLimit,
             pdfFilePath1: null,
@@ -56,7 +56,7 @@ const TotalCostSimulation = () => {
             executiveWorking: 0,
             amountWanted: desiredAmount,
             amountMax: propertyValue,
-            interestRate: interestRate/100,
+            interestRate: interestRate,
             typeLoan,
             timeLimit: timeLimit,
             pdfFilePath1: null,
@@ -139,10 +139,10 @@ const TotalCostSimulation = () => {
                         onChange={(e) => setTypeLoan(e.target.value)}
                     >
                         <MenuItem value="" disabled>Tipo de Crédito</MenuItem>
-                        <MenuItem value={1}>1</MenuItem>
-                        <MenuItem value={2}>2</MenuItem>
-                        <MenuItem value={3}>3</MenuItem>
-                        <MenuItem value={4}>4</MenuItem>
+                        <MenuItem value={1}>Primera vivienda</MenuItem>
+                        <MenuItem value={2}>Segunda vivienda</MenuItem>
+                        <MenuItem value={3}>Propiedades comerciales</MenuItem>
+                        <MenuItem value={4}>Remodelación</MenuItem>
                     </Select>
                 </FormControl>
 
@@ -153,7 +153,7 @@ const TotalCostSimulation = () => {
                         type="submit"
                         startIcon={<CalculateIcon />}
                     >
-                        Calcular Costo Total
+                        Calcular Costo Mensual
                     </Button>
                 </FormControl>
 
@@ -164,7 +164,7 @@ const TotalCostSimulation = () => {
                         onClick={handleCalculate2}
                         startIcon={<CalculateIcon />}
                     >
-                        Calcular Costo Mensual
+                        Calcular Costo Total
                     </Button>
                 </FormControl>
             </form>
@@ -177,14 +177,14 @@ const TotalCostSimulation = () => {
 
             {calculationResult && (
                 <Box marginTop={4}>
-                    <Typography variant="h6">Resultado del costo total:</Typography>
+                    <Typography variant="h6">Resultado del costo mensual:</Typography>
                     <Typography>{calculationResult}</Typography>
                 </Box>
             )}
 
             {calculationResult2 && (
                 <Box marginTop={4}>
-                    <Typography variant="h6">Resultado del Costo Mensual:</Typography>
+                    <Typography variant="h6">Resultado del Costo total:</Typography>
                     <Typography>{calculationResult2}</Typography>
                 </Box>
             )}

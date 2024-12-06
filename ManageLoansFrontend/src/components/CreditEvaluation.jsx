@@ -6,7 +6,7 @@ import creditEvaluation from "../services/credit-evaluation.js";
 import creditApplication from "../services/credit-application.js";
 import trackingRequests from "../services/tracking-requests.js";
 import creditSimulator from "../services/credit-simulator.js";
-import {LoanTypesTable} from "../services/credit-application.js"
+import {LoanTypesTable} from "./functions.jsx"
 import userRegistration from "../services/user-registration.js";
 
 const CreditEvaluation = () => {
@@ -55,12 +55,12 @@ const CreditEvaluation = () => {
             .then((response) => {
                 console.log("Credito:", JSON.stringify(response.data, null, 2));
                 setCredit(response.data);
-                setFollowUp(response.data.follow_up);
-                creditSimulator.getMonthlyFee(response.data)
+                setFollowUp(response.data.followUp);
+                creditApplication.calculateMonthlyFee(response.data)
                     .then((response) => {
                         setCostoMensual(response.data);
                     })
-                creditSimulator.getTotalCost(response.data)
+                creditApplication.calculateTotalCost(response.data)
                     .then((response) => {
                         setCostoTotal(response.data);
                     })
@@ -138,7 +138,6 @@ const CreditEvaluation = () => {
             });
     };
 
-
     const handleEvaluation = async () => {
         setErrorMessage("");
         try {
@@ -185,27 +184,50 @@ const CreditEvaluation = () => {
         }
     };
 
-    const getDocumentButtons = (type, creditApplication, creditId) => {
+    const getDocumentButtons = (typeLoan) => {
         const buttons = [];
-        if (type === 1) {
-            buttons.push("Comprobante de ingresos", "Certificado avalúo", "Historial crediticio");
-        } else if (type === 2) {
-            buttons.push("Comprobante de ingresos", "Certificado avalúo", "Escritura primera vivienda", "Historial crediticio");
-        }else if(type === 3){
-            buttons.push("Estado financiero del negocio", "Comprobante de ingresos", "Certificado de avalúo", "Plan de negocios");
-        }else if(type === 4){
-            buttons.push("Comprobante de ingresos", "Presupuesto de la remodelación", "Certificado de avalúo actualizado")
+
+        // Mapear los textos de los botones según el typeLoan
+        const loanDocuments = {
+            1: ["Comprobante de ingresos", "Certificado de avalúo", "Historial crediticio"],
+            2: ["Comprobante de ingresos", "Certificado de avalúo", "Escritura de primera vivienda", "Historial crediticio"],
+            3: ["Estado financiero del negocio", "Comprobante de ingresos", "Certificado de avalúo", "Plan de negocios"],
+            4: ["Comprobante de ingresos", "Presupuesto de remodelación", "Certificado de avalúo actualizado"]
+        };
+        // Obtener los textos correspondientes al typeLoan
+        const documents = loanDocuments[typeLoan] || [];
+        // Verificar los archivos PDF disponibles
+        const pdfFiles = [
+            credit.pdfFilePath1,
+            credit.pdfFilePath2,
+            credit.pdfFilePath3,
+            credit.pdfFilePath4
+        ];
+        // Generar botones para los documentos disponibles
+        documents.forEach((doc, index) => {
+            if (pdfFiles[index]) { // Si el archivo PDF existe para este documento
+                buttons.push(
+                    <Button
+                        key={index}
+                        onClick={() => creditApplication.downloadPdf(creditId, index + 1)}
+                        sx={{ marginBottom: 1 }}
+                    >
+                        Descargar {doc}
+                    </Button>
+                );
+            }
+        });
+        // Si no hay ningún documento disponible, mostrar un mensaje
+        if (buttons.length === 0) {
+            buttons.push(
+                <Typography key="no-pdf" variant="body1">
+                    No hay documentos disponibles.
+                </Typography>
+            );
         }
-        return buttons.map((label, index) => (
-            <Button
-                key={index}
-                onClick={() => creditApplication.downloadPdf(creditId, index + 1)}
-                sx={{ marginBottom: 1 }}
-            >
-                Descargar PDF de {label}
-            </Button>
-        ));
+        return buttons;
     };
+
 
     return (
         <Box sx={{ padding: '20px', maxWidth: '600px', margin: 'auto', border: '1px solid #ddd', borderRadius: '8px' }}>
@@ -358,7 +380,7 @@ const CreditEvaluation = () => {
                                     </Typography>
                                     <Divider sx={{ marginBottom: 2 }} />
                                     <ul>
-                                        <li>Tipo de crédito: {getCreditType(credit.typeloan)}</li>
+                                        <li>Tipo de crédito: {getCreditType(credit.typeLoan)}</li>
                                         <li>Monto solicitado: {credit.amountWanted}</li>
                                         <li>Monto de la propiedad: {credit.amountMax}</li>
                                         <li>Rango de interés solicitado: {credit.interestRate}</li>
@@ -379,7 +401,7 @@ const CreditEvaluation = () => {
                                     </Typography>
                                     <Divider sx={{ marginBottom: 2 }} />
                                     <ButtonGroup orientation="vertical" fullWidth>
-                                        {getDocumentButtons(credit.typeloan, creditApplication, creditId)}
+                                        {getDocumentButtons(credit.typeLoan, creditApplication, creditId)}
                                     </ButtonGroup>
                                 </CardContent>
                             </Card>
@@ -394,7 +416,7 @@ const CreditEvaluation = () => {
                                 variant="contained"
                                 color="secondary"
                                 sx={{ marginLeft: 2 }}
-                                onClick={() => handleFollowUp(6)}
+                                onClick={() => handleFollowUp(-6)}
                             >
                                 Rechazar solicitud de crédito
                             </Button>
@@ -402,7 +424,7 @@ const CreditEvaluation = () => {
                                 variant="contained"
                                 color="error"
                                 sx={{ marginLeft: 2 }}
-                                onClick={() => handleFollowUp(7)}
+                                onClick={() => handleFollowUp(-7)}
                             >
                                 Rechazar como cliente
                             </Button>
@@ -430,7 +452,7 @@ const CreditEvaluation = () => {
                                     </Typography>
                                     <Divider sx={{ marginBottom: 2 }} />
                                     <ul>
-                                        <li>Tipo de crédito: {getCreditType(credit.typeloan)}</li>
+                                        <li>Tipo de crédito: {getCreditType(credit.typeLoan)}</li>
                                         <li>Monto solicitado: {credit.amountWanted}</li>
                                         <li>Monto de la propiedad: {credit.amountMax}</li>
                                         <li>Rango de interés solicitado: {credit.interestRate}</li>
@@ -452,7 +474,7 @@ const CreditEvaluation = () => {
                         <Button
                             variant="contained"
                             color="primary"
-                            onClick={() => handleFollowUp(7)}
+                            onClick={() => handleFollowUp(-7)}
                             style={{ marginTop: '20px' }}
                         >
                             Rechazar
@@ -593,7 +615,7 @@ const CreditEvaluation = () => {
                                         </Typography>
                                         <Divider sx={{ marginBottom: 2 }} />
                                         <ul>
-                                            <li>Tipo de crédito: {getCreditType(credit.typeloan)}</li>
+                                            <li>Tipo de crédito: {getCreditType(credit.typeLoan)}</li>
                                             <li>Monto solicitado: {credit.amountWanted}</li>
                                             <li>Monto de la propiedad: {credit.amountMax}</li>
                                             <li>Rango de interés solicitado: {credit.interestRate}</li>
@@ -614,34 +636,13 @@ const CreditEvaluation = () => {
                                         </Typography>
                                         <Divider sx={{ marginBottom: 2 }} />
                                         <ButtonGroup orientation="vertical" fullWidth>
-                                            {getDocumentButtons(credit.typeloan, creditApplication, creditId)}
+                                            {getDocumentButtons(credit.typeLoan, creditApplication, creditId)}
                                         </ButtonGroup>
                                     </CardContent>
                                 </Card>
                             </Grid>
 
-                            {/* Botones de seguimiento */}
-                            <Grid item xs={12}>
-                                <Button variant="contained" color="primary" onClick={() => handleFollowUp(3)}>
-                                    Aprobar solicitud de crédito
-                                </Button>
-                                <Button
-                                    variant="contained"
-                                    color="secondary"
-                                    sx={{ marginLeft: 2 }}
-                                    onClick={() => handleFollowUp(6)}
-                                >
-                                    Rechazar solicitud de crédito
-                                </Button>
-                                <Button
-                                    variant="contained"
-                                    color="error"
-                                    sx={{ marginLeft: 2 }}
-                                    onClick={() => handleFollowUp(7)}
-                                >
-                                    Rechazar como cliente
-                                </Button>
-                            </Grid>
+
                         </Grid>
                         <Button
                             variant="contained"
@@ -654,7 +655,7 @@ const CreditEvaluation = () => {
                         <Button
                             variant="contained"
                             color="primary"
-                            onClick={() => handleFollowUp(6)}
+                            onClick={() => handleFollowUp(-6)}
                             style={{ marginTop: '20px' }}
                         >
                             Rechazar
@@ -662,7 +663,7 @@ const CreditEvaluation = () => {
                         <Button
                             variant="contained"
                             color="primary"
-                            onClick={() => handleFollowUp(7)}
+                            onClick={() => handleFollowUp(-7)}
                             style={{ marginTop: '20px' }}
                         >
                             Rechazar como cliente
@@ -696,7 +697,7 @@ const CreditEvaluation = () => {
 
 
             {credit ? (
-                followUp === 6 ? (
+                followUp === -6 ? (
                     // Mensaje principal en caso de rechazo del crédito
                     <Typography
                         variant="body1"
@@ -801,7 +802,7 @@ const CreditEvaluation = () => {
             )}
 
             {credit ? (
-                followUp === 7 ? (
+                followUp === -7 ? (
                     <Typography variant="body1" color="textSecondary">
                         Cancelada por el cliente
                     </Typography>

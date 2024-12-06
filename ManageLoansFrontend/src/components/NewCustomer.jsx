@@ -65,7 +65,7 @@ const NewCustomer = () => {
         }
 
         workHistories.forEach((history, index) => {
-            if (!history.income || !history.debt || !history.creditHistory || !history.date) {
+            if (!history.income || !history.creditHistory || !history.date) {
                 newErrors.push(`WorkHistory #${index + 1} tiene campos vacíos.`);
             } else {
                 if(history.income < 500){
@@ -103,57 +103,72 @@ const NewCustomer = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (validateForm()) {
-            try {
-                console.log("Se empieza a crear el cliente");
-                const customer = {
-                    yearBirth: new Date(birthDate).getFullYear(),
-                    name
-                }
-                userRegistration.saveCustomer(customer)
-                    .then((response) => {
-                        workHistories.forEach((workHistory) => {
-                            const workHistoryEntity = {
-                                customerId: response.data.id,
-                                income: workHistory.income,
-                                debt: workHistory.debt,
-                                creditHistory: workHistory.creditHistory,
-                                date: workHistory.date
-                            }
-                            creditEvaluation.saveWorkHistory(workHistoryEntity);
-                        })
-                        const date = new Date().toISOString().split('T')[0];
-                        const customerHistory2 = {
-                            customerId: response.data.id,
-                            content: "El cliente ha sido creado",
-                            date
-                        };
-                        userRegistration.saveCustomerHistory(customerHistory2);
-                        const savingAccount = {
-                            customerId: response.data.id,
-                            antique: savingAccountEntity.antique,
-                            self_employed_worker: savingAccountEntity.self_employed_worker,
-                            amount: savingAccountEntity.amount
-                        };
-                        trackingRequests.saveSavingAccount(savingAccount)
-                            .then((response) => {
-                                drafts.forEach((draft) => {
-                                    const accountDraft = {
-                                        savingAccountId: response.data.id,
-                                        date: draft.date,
-                                        drafts: draft.drafts,
-                                        amountAtThatTime: draft.amountAtThatTime
-                                    };
-                                    creditSimulator.saveAccountDraft(accountDraft);
-                                })
-                            })
-                    })
-                console.log("Cliente guardado con exito");
-                setSuccessMessage("Usuario creado con éxito! Vaya a la lista de usuarios para verlo.");
-            } catch (error) {
-                console.error("Error al guardar el cliente:", error);
-                setErrors(["Error al guardar el cliente. Intenta de nuevo más tarde."]);
+
+        if (!validateForm()) {return; // Si la validación falla, no procedas.
+        }
+
+        try {
+            console.log("Se empieza a crear el cliente");
+
+            // Crear cliente
+            const customer = {
+                yearBirth: new Date(birthDate).getFullYear(),
+                name,
+            };
+            const customerResponse = await userRegistration.saveCustomer(customer);
+            const customerId = customerResponse.data.id; // ID del cliente creado
+
+            console.log("Cliente creado con ID:", customerId);
+
+            // Guardar Work Histories
+            for (const workHistory of workHistories) {
+                const workHistoryEntity = {
+                    customerId, // Asociado al cliente creado
+                    income: workHistory.income,
+                    debt: workHistory.debt,
+                    creditHistory: workHistory.creditHistory,
+                    date: workHistory.date,
+                };
+                await creditEvaluation.saveWorkHistory(workHistoryEntity);
             }
+
+            // Guardar Customer History
+            const date = new Date().toISOString().split("T")[0];
+            const customerHistory2 = {
+                customerId,
+                content: "El cliente ha sido creado",
+                date,
+            };
+            await userRegistration.saveCustomerHistory(customerHistory2);
+
+            // Crear Saving Account
+            const savingAccount = {
+                customerId, // Asociado al cliente creado
+                antique: savingAccountEntity.antique,
+                self_employed_worker: savingAccountEntity.self_employed_worker,
+                amount: savingAccountEntity.amount,
+            };
+            const savingAccountResponse = await trackingRequests.saveSavingAccount(savingAccount);
+            const savingAccountId = savingAccountResponse.data.id; // ID de la cuenta creada
+
+            console.log("Cuenta de ahorro creada con ID:", savingAccountId);
+
+            // Guardar Drafts
+            for (const draft of drafts) {
+                const accountDraft = {
+                    savingAccountId, // Asociado a la cuenta de ahorro creada
+                    date: draft.date,
+                    drafts: draft.drafts,
+                    amountAtThatTime: draft.amountAtThatTime,
+                };
+                await creditSimulator.saveAccountDraft(accountDraft);
+            }
+
+            console.log("Cliente guardado con éxito");
+            setSuccessMessage("Usuario creado con éxito! Vaya a la lista de usuarios para verlo.");
+        } catch (error) {
+            console.error("Error al guardar el cliente:", error);
+            setErrors(["Error al guardar el cliente. Intenta de nuevo más tarde."]);
         }
     };
 
