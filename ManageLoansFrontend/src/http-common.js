@@ -9,3 +9,4 @@ export default axios.create({
         'Content-Type': 'application/json'
     }
 });
+console.log(`http://${manageLoansBackendServer}:${manageLoansBackendPort}`)
