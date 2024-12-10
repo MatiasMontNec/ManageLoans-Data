@@ -108,7 +108,7 @@ const ListCredit = () => {
                             <TableCell align="left">{getExecutiveWorkingText(credit.executiveWorking)}</TableCell>
                             <TableCell align="right">{credit.amountWanted}</TableCell>
                             <TableCell align="center">
-                                {credit.followUp !== 8 && credit.followUp !== -7 &&(
+                                {credit.followUp !== 8 && credit.followUp !== -7 && credit.followUp !== -6 &&(
                                     <>
                                         <Button
                                             variant="contained"

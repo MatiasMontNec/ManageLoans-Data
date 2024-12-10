@@ -102,6 +102,7 @@ const CreditEvaluation = () => {
 
     const evaluation = () => {
         if (costoMensual === -1) {
+            console.log("No evaluo correctamente en el calculo para monthlyFee");
             setFollowUp(-6);
             trackingRequests.modifyFollowUp(creditId, -6)
                 .then(() => {
@@ -119,6 +120,34 @@ const CreditEvaluation = () => {
         ])
             .then(([feeIncomeRes, jobSeniorityRes, debtIncomeRes, ageRes, capacitySavingsRes]) => {
                 if (feeIncomeRes.data === 0 || jobSeniorityRes.data === 0 || debtIncomeRes.data === 0 || ageRes.data === 0 || capacitySavingsRes.data <= 2) {
+                    if(feeIncomeRes.data === 0){
+                        console.log("Fallo en relacion cuota/ingreso");
+                        console.log(costoMensual);
+                        console.log(mostRecentedWork.income);
+                    }
+                    if(jobSeniorityRes.data === 0){
+                        console.log("Fallo en antiguedad cuenta de ahorro");
+                        console.log(savingAccountEntity.antique);
+                    }
+                    if(debtIncomeRes.data === 0){
+                        console.log("Fallo en relacion deuda/ingreso");
+                        console.log(mostRecentedWork.income);
+                        console.log(mostRecentedWork.debt);
+                        console.log(costoMensual);
+                    }
+                    if(ageRes.data === 0){
+                        console.log("Fallo en la edad");
+                        console.log(customer.yearBirth);
+                        console.log(credit.timeLimit);
+                    }
+                    if(capacitySavingsRes.data === 0){
+                        console.log("Fallo en la capacidad de ahorro");
+                        console.log(savingAccountEntity.amount);
+                        console.log(savingAccountEntity.antique);
+                        console.log(credit.amountWanted);
+                        console.log(id);
+                        console.log(mostRecentedWork);
+                    }
                     setFollowUp(-6);
                     trackingRequests.modifyFollowUp(creditId, -6)
                         .then(() => {
