@@ -19,7 +19,7 @@ export default function Sidemenu({ open, toggleDrawer }) {
                     <ListItemIcon>
                         <HomeIcon />
                     </ListItemIcon>
-                    <ListItemText primary="Home ᗜ˰ᗜ" />
+                    <ListItemText primary="Inicio ᗜ˰ᗜ" />
                 </ListItemButton>
 
                 <Divider />
@@ -28,21 +28,21 @@ export default function Sidemenu({ open, toggleDrawer }) {
                     <ListItemIcon>
                         <AddCircleOutlineIcon />
                     </ListItemIcon>
-                    <ListItemText primary="New Customer ᗜˬᗜ" />
+                    <ListItemText primary="Nuevo Cliente ᗜˬᗜ" />
                 </ListItemButton>
 
                 <ListItemButton onClick={() => navigate("/listCustomer")}>
                     <ListItemIcon>
                         <FormatListBulletedIcon/>
                     </ListItemIcon>
-                    <ListItemText primary="List of customer ᗜ˰ᗜ"/>
+                    <ListItemText primary="Lista de Clientes ᗜ˰ᗜ"/>
                 </ListItemButton>
 
                 <ListItemButton onClick={() => navigate("/totalCostSimulation")}>
                     <ListItemIcon>
                         <PsychologyAltIcon />
                     </ListItemIcon>
-                    <ListItemText primary="Cost Simulation ඞ" />
+                    <ListItemText primary="Simulación de Créditos ඞ" />
                 </ListItemButton>
             </List>
 

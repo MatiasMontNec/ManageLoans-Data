@@ -1,11 +1,11 @@
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Inter", system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #333333;
+  color: #023047; /* Texto principal en azul oscuro */
+  background-color: #E8F1F5; /* Fondo principal en azul claro */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -15,11 +15,11 @@
 
 a {
   font-weight: 500;
-  color: #a1bfff;
+  color: #06D6A0; /* Verde brillante para enlaces */
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: #05C095; /* Verde más oscuro para hover */
 }
 
 body {
@@ -28,13 +28,13 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
-  background-color: inherit;
+  background-color: #E8F1F5; /* Fondo principal */
 }
 
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
-  color: #ffffff;
+  color: #023047; /* Azul oscuro para encabezados */
 }
 
 button {
@@ -42,15 +42,16 @@ button {
   border: 1px solid transparent;
   padding: 0.6em 1.2em;
   font-size: 1em;
-  font-weight: 500;
+  font-weight: bold;
   font-family: inherit;
-  background-color: #444444;
-  color: #ffffff;
+  background-color: #06D6A0; /* Verde brillante */
+  color: #FFFFFF;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: background-color 0.25s, border-color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  background-color: #05C095; /* Verde más oscuro */
+  border-color: #023047; /* Azul oscuro */
 }
 button:focus,
 button:focus-visible {
@@ -59,13 +60,13 @@ button:focus-visible {
 
 @media (prefers-color-scheme: light) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    color: #023047; /* Azul oscuro */
+    background-color: #E8F1F5; /* Azul claro */
   }
   a:hover {
-    color: #747bff;
+    color: #05C095; /* Verde más oscuro */
   }
   button {
-    background-color: #f9f9f9;
+    background-color: #FFB703; /* Amarillo cálido para botones secundarios */
   }
 }
